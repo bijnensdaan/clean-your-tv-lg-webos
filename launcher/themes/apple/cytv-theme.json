@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "themeApiVersion": 1,
+  "id": "builtin:apple",
+  "title": "Apple",
+  "description": "Calm tvOS-inspired layered glass over an original soft backdrop, on the Classic dock with the Inputs shelf.",
+  "author": {
+    "name": "Clean Your TV contributors",
+    "url": "https://github.com/razdva122"
+  },
+  "themeVersion": "1.0.0",
+  "layout": {
+    "preset": "dock-grid",
+    "columns": 5,
+    "spacingScale": 1,
+    "textScale": 1,
+    "focusScale": 1.1,
+    "allowColumnOverride": true,
+    "motion": "classic",
+    "inputs": "shelf",
+    "weather": {
+      "formats": [
+        "text"
+      ],
+      "scale": 1,
+      "padding": 0,
+      "icons": "fill"
+    }
+  },
+  "defaults": {
+    "wallpaperAssetId": "wallpaper",
+    "dim": 0,
+    "accent": "#f5f7fb"
+  },
+  "assets": [
+    {
+      "id": "wallpaper",
+      "path": "assets/wallpaper-13555627707187269e31fee1aaf5bb8ff69f6cc35d0d9b882eaa0401fffd6037.jpg",
+      "mediaType": "image/jpeg",
+      "width": 1920,
+      "height": 1080,
+      "size": 42412,
+      "sha256": "13555627707187269e31fee1aaf5bb8ff69f6cc35d0d9b882eaa0401fffd6037"
+    },
+    {
+      "id": "preview",
+      "path": "assets/preview-8de9afa0d3e132bdefad4b12a157b00a54fb26cc95e3e90908ba8cdad5d3316b.jpg",
+      "mediaType": "image/jpeg",
+      "width": 960,
+      "height": 540,
+      "size": 50865,
+      "sha256": "8de9afa0d3e132bdefad4b12a157b00a54fb26cc95e3e90908ba8cdad5d3316b"
+    }
+  ],
+  "previewAssetId": "preview",
+  "license": {
+    "identifier": "MIT",
+    "textPath": "documents/0-f497a621e75e2ccabaac016c8ada95b415a7810fb9994798b282fa9f9d03920f.txt",
+    "creditsPath": "documents/1-39696bb37d9c92d6b10f7c11c870166d7400fa7a83e1724d3292f2df1376bd0b.txt"
+  },
+  "source": {
+    "repository": "https://github.com/razdva122/clean-your-tv-lg-webos",
+    "commit": "dea34d11eedc667087b8c09bb4da39cdb2339208"
+  },
+  "requires": {
+    "minimumHomeVersion": "1.17.0",
+    "capabilities": [
+      "weather-v1",
+      "input-placement-v1",
+      "classic-motion-v1"
+    ]
+  },
+  "rules": {
+    "path": "rules/c674b0b50a0e624e84f3406f13efe6d286f040a690d7da71fcb3103fb2d62977.json",
+    "size": 10146,
+    "sha256": "c674b0b50a0e624e84f3406f13efe6d286f040a690d7da71fcb3103fb2d62977"
+  },
+  "documents": [
+    {
+      "path": "documents/0-f497a621e75e2ccabaac016c8ada95b415a7810fb9994798b282fa9f9d03920f.txt",
+      "size": 546,
+      "sha256": "f497a621e75e2ccabaac016c8ada95b415a7810fb9994798b282fa9f9d03920f"
+    },
+    {
+      "path": "documents/1-39696bb37d9c92d6b10f7c11c870166d7400fa7a83e1724d3292f2df1376bd0b.txt",
+      "size": 838,
+      "sha256": "39696bb37d9c92d6b10f7c11c870166d7400fa7a83e1724d3292f2df1376bd0b"
+    }
+  ]
+}

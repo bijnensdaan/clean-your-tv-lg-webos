@@ -1,0 +1,4 @@
+Theme styling derived from the bundled Liquid Glass theme (CYTV themes, 2026, MIT); adaptations and procedural backdrop wallpaper: CYTV themes, 2026, MIT.
+Design reference: calm, layered TV home-screen interfaces in the style of tvOS. Independent styling built only from Theme API gradients, borders and shadows; not affiliated with or endorsed by Apple. "Apple" is used only as a descriptive theme title. No Apple screenshots, wallpapers, fonts or UI image assets are included.
+Browser preview captures depict reference application icons belonging to their respective owners and supplied by the project reference fixture. Original icon files are not distributed separately as replacement theme assets.
+Preview image: actual trusted Home browser renderer, No-root edition, captured with the Apple source theme and downsampled to 960x540.

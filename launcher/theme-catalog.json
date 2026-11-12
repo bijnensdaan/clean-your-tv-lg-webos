@@ -43,6 +43,23 @@
       "digest": "d5b50a2b05e485f3c1cb086d27fb44dc33dbdfd3dd97ca80e3c53ba823ac7071"
     },
     {
+      "packageSize": 107488,
+      "has4k": false,
+      "hasVideo": false,
+      "id": "builtin:apple",
+      "title": "Apple",
+      "version": "1.0.0",
+      "builtin": true,
+      "description": "Calm tvOS-inspired layered glass over an original soft backdrop, on the Classic dock with the Inputs shelf.",
+      "author": "Clean Your TV contributors",
+      "license": "MIT",
+      "preview": "themes/apple/assets/preview-8de9afa0d3e132bdefad4b12a157b00a54fb26cc95e3e90908ba8cdad5d3316b.jpg",
+      "credits": "themes/apple/documents/1-39696bb37d9c92d6b10f7c11c870166d7400fa7a83e1724d3292f2df1376bd0b.txt",
+      "licenseFile": "themes/apple/documents/0-f497a621e75e2ccabaac016c8ada95b415a7810fb9994798b282fa9f9d03920f.txt",
+      "url": "themes/apple/cytv-theme.json",
+      "digest": "d50433e5d74fac32143d39d1b0baac2cf8706742e2ca88779f429b29c6325c8f"
+    },
+    {
       "packageSize": 4100749,
       "has4k": true,
       "hasVideo": false,

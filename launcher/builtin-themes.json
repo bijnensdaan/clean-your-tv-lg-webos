@@ -14,6 +14,13 @@
       "version": "1.4.0",
       "url": "themes/ribbon/cytv-theme.json",
       "digest": "d5b50a2b05e485f3c1cb086d27fb44dc33dbdfd3dd97ca80e3c53ba823ac7071"
+    },
+    {
+      "id": "builtin:apple",
+      "title": "Apple",
+      "version": "1.0.0",
+      "url": "themes/apple/cytv-theme.json",
+      "digest": "d50433e5d74fac32143d39d1b0baac2cf8706742e2ca88779f429b29c6325c8f"
     }
   ]
 }
