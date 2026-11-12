@@ -2,20 +2,21 @@
 
 Start with a task. You do not need the developer reports to install or use Clean Your TV.
 
-| I want to… | Read |
-| --- | --- |
-| Choose No-root or Root | [Edition comparison](EDITIONS.md) |
-| Check my TV and computer | [Requirements and known limits](COMPATIBILITY.md) |
-| Install | [Installation](INSTALL.md) |
-| Open the installer on Windows, macOS or Linux | [Desktop setup](DESKTOP_INSTALL.md) |
-| Use an Android phone | [Android setup](../android/README.md) |
-| Learn the remote controls | [Controls and emergency exit](CONTROLS.md) |
-| Browse or create themes | [Theme catalog and author tools](THEMES.md) |
-| Contribute a theme to Showcase | [Author contribution walkthrough](development/CONTRIBUTING-THEMES.md) |
-| Arrange or hide apps | [App management](APP-MANAGEMENT.md) |
-| Update, disable or uninstall | [Maintenance](MAINTENANCE.md) |
-| Recover from a failed setup or lost Home control | [Recovery](RECOVERY.md) |
-| Report an installation result | [Problems and successful installations](FEEDBACK.md) |
+| I want to…                                       | Read                                                                  |
+| ------------------------------------------------ | --------------------------------------------------------------------- |
+| Choose No-root or Root                           | [Edition comparison](EDITIONS.md)                                     |
+| Check my TV and computer                         | [Requirements and known limits](COMPATIBILITY.md)                     |
+| Install                                          | [Installation](INSTALL.md)                                            |
+| Open the installer on Windows, macOS or Linux    | [Desktop setup](DESKTOP_INSTALL.md)                                   |
+| Use an Android phone                             | [Android setup](../android/README.md)                                 |
+| Learn the remote controls                        | [Controls and emergency exit](CONTROLS.md)                            |
+| Browse or create themes                          | [Theme catalog and author tools](THEMES.md)                           |
+| Apple theme and photo show (this fork)           | [Apple theme and photo show](PHOTO-SHOW.md)                           |
+| Contribute a theme to Showcase                   | [Author contribution walkthrough](development/CONTRIBUTING-THEMES.md) |
+| Arrange or hide apps                             | [App management](APP-MANAGEMENT.md)                                   |
+| Update, disable or uninstall                     | [Maintenance](MAINTENANCE.md)                                         |
+| Recover from a failed setup or lost Home control | [Recovery](RECOVERY.md)                                               |
+| Report an installation result                    | [Problems and successful installations](FEEDBACK.md)                  |
 
 ## Choose your language
 
