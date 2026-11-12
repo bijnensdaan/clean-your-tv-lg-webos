@@ -2647,6 +2647,20 @@
     windowFocused = false;
     stopPreview();
   });
+  // Read-only snapshot for the idle photo show; it never changes Home state.
+  window.HomeIdleState = function () {
+    return {
+      zone: focusZone,
+      focused: windowFocused,
+      busy: !!(
+        moveState ||
+        pickerOpen ||
+        undoState ||
+        okHoldTimer ||
+        pointerTimer
+      )
+    };
+  };
   window.addEventListener('focus', function () {
     windowFocused = true;
     refreshInputStatus();

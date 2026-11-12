@@ -29,6 +29,7 @@
       'Scan the QR code with your phone, or open:':
         'Scan de QR-code met je telefoon, of open:',
       'Waiting for photos… {n} received': 'Wachten op foto’s… {n} ontvangen',
+      '1 photo added.': '1 foto toegevoegd.',
       '{n} photos added.': '{n} foto’s toegevoegd.',
       '{n} could not be added.': '{n} konden niet worden toegevoegd.',
       'Photo receiver stopped. Try again.':
@@ -267,7 +268,10 @@
     return !!receiverSignal;
   }
   function summary() {
-    var text = t('{n} photos added.', { n: received });
+    var text =
+      received === 1
+        ? t('1 photo added.')
+        : t('{n} photos added.', { n: received });
     if (rejected) text += ' ' + t('{n} could not be added.', { n: rejected });
     return text;
   }

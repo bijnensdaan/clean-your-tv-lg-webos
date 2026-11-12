@@ -18,6 +18,7 @@ THEME_FILES = WEATHER_FILES + [
     'personal-wallpaper.js',
     'photo-show-store.js',
     'photo-show-panel.js',
+    'photo-show.js',
     'wallpaper-library.js',
     'wallpaper-stream.js',
     'wallpapers/black-hole-stream.mp4',

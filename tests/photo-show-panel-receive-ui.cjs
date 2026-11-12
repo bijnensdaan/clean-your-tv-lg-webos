@@ -223,7 +223,7 @@ function stub(page, count) {
     ]);
     assert.match(
       await page.locator('#photoShowStatus').innerText(),
-      /^1 photos added\. Photo limit reached/
+      /^1 photo added\. Photo limit reached/
     );
     assert.deepEqual(await page.evaluate(() => window.__receiver.stops), [
       'session-1'

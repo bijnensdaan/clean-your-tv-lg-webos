@@ -389,4 +389,20 @@
       });
   }
   if (photoDemoRequested()) window.addEventListener('load', seedDemoPhotos);
+  // ?idle=N (seconds) shortens the photo show idle timeout in the preview only.
+  function previewIdleSeconds() {
+    var query = location.search;
+    try {
+      if (window.parent && window.parent !== window)
+        query += '&' + window.parent.location.search.slice(1);
+    } catch (_) {}
+    var match = /(?:^|[?&])idle=(\d+)(?:&|$)/.exec(query);
+    return match ? Number(match[1]) : 0;
+  }
+  var idleSeconds = previewIdleSeconds();
+  if (idleSeconds > 0)
+    window.addEventListener('load', function () {
+      if (window.PhotoShow)
+        window.PhotoShow.configure({ idleMs: idleSeconds * 1000 });
+    });
 })();
