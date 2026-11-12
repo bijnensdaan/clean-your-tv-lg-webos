@@ -1,0 +1,7 @@
+# Apple (bundled theme source)
+
+Calm, tvOS-inspired layered glass over an original soft backdrop, on the Classic dock with the Inputs shelf. The stylesheet is derived from the bundled Liquid Glass theme and keeps its structure and performance notes, with quieter graphite surfaces, thinner light rims, rounded tiles and soft shadows. Theme API 1 has no blur, inset shadows or radial gradients, so depth comes from translucent fills, outer shadows and a wallpaper that is already soft; focus is emphasised by a brighter fill, a deeper shadow and a soft light rim rather than by scaling or blur. It declares `layout.motion: "classic"` (capability `classic-motion-v1`), so it keeps unthemed Classic's glide, bump, zoom, edge fades and baked glow, and it sets no transitions of its own. No theme-specific navigation code, author scripts or replacement app logos are included. Classic remains Home’s default.
+
+The wallpaper (`assets/backdrop.jpg`, 1920×1080) is procedural: a graphite-to-navy base with four soft colour glows (blue, violet, teal, deep blue), a light vignette, a heavy Gaussian blur and ±1.5 noise against banding.
+
+The runtime bundle is `launcher/themes/apple`; `launcher/builtin-themes.json` registers packaged built-ins for both editions. Run `node scripts/build-builtin-theme.cjs themes/apple` after committing source, then run it with `--check` to verify reproducibility. `assets/preview.jpg` is a browser capture with the reference icons, not a physical-TV acceptance capture.
