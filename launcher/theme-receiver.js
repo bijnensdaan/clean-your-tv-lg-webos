@@ -101,12 +101,26 @@
         (+p[0] === 172 && +p[1] >= 16 && +p[1] <= 31))
     );
   }
-  function start(signal, kind) {
-    return rpc(
-      'themeReceiverStart',
-      kind === 'wallpaper' ? { kind: 'wallpaper' } : {},
-      signal
-    ).then(function (s) {
+  function start(signal, kind, options) {
+    var request = {};
+    if (kind === 'wallpaper') request = { kind: 'wallpaper' };
+    else if (kind === 'photos') {
+      // Photos: one QR session accepts several phone images in turn.
+      request = { kind: 'photos' };
+      if (options && Number.isInteger(options.limit))
+        request.limit = options.limit;
+    }
+    return rpc('themeReceiverStart', request, signal).then(function (s) {
+      if (
+        kind === 'photos' &&
+        (s.kind !== 'photos' ||
+          s.photoProtocol !== 1 ||
+          !Number.isInteger(s.photoLimit) ||
+          s.photoLimit < 1)
+      ) {
+        if (typeof s.sessionId === 'string') stop(s.sessionId);
+        throw Error('Photo receiver unavailable. Update Home and its service.');
+      }
       if (
         kind === 'wallpaper' &&
         (s.kind !== 'wallpaper' || s.wallpaperProtocol !== 1)

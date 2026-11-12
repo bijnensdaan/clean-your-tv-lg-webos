@@ -190,6 +190,22 @@
   opacity: 0.5;
   cursor: default;
 }
+#photoShowConnection {
+  border: 1px solid #526170;
+  padding: 16px;
+  margin: 12px 0;
+}
+#photoShowQR {
+  display: block;
+  width: 210px;
+  height: 210px;
+  background: white;
+}
+#photoShowPIN {
+  font-size: 36px !important;
+  letter-spacing: 6px;
+  color: #fff !important;
+}
 #photoShowWarning {
   border-left: 3px solid #f2c46d;
   padding-left: 12px;

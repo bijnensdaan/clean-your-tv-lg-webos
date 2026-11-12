@@ -196,6 +196,11 @@ exports.create = function (options) {
     deadline = options.requestTimeoutMs || 15000;
   var maxBytes = options.maxBytes || 33 * 1024 * 1024,
     maxWrong = options.maxWrongPins || 20;
+  // A photos session takes phone images one at a time with the same PIN.
+  var maxPhotos = 50;
+  function remaining(s) {
+    return Math.max(0, s.limit - s.count);
+  }
   function closeListener(s) {
     if (!s.listening) return;
     s.listening = false;
@@ -296,11 +301,13 @@ exports.create = function (options) {
       reply(403);
       return;
     }
-    var browser = Object.prototype.hasOwnProperty.call(req.headers, 'origin');
+    var browser = Object.prototype.hasOwnProperty.call(req.headers, 'origin'),
+      photos = s.kind === 'photos',
+      phoneKind = s.kind === 'wallpaper' || photos;
     if (
       browser &&
       !(
-        s.kind === 'wallpaper' &&
+        phoneKind &&
         req.headers.origin === 'http://' + req.headers.host &&
         ((req.method === 'POST' && req.url === '/v1/wallpaper') ||
           (req.method === 'GET' &&
@@ -311,20 +318,19 @@ exports.create = function (options) {
       reply(403);
       return;
     }
-    if (
-      s.kind === 'wallpaper' &&
-      req.method === 'GET' &&
-      req.url === '/wallpaper'
-    ) {
+    if (phoneKind && req.method === 'GET' && req.url === '/wallpaper') {
       reply(
         200,
         null,
-        phonePage.replace('CYTV_SESSION_EXPIRES', String(s.expiresAt))
+        phonePage
+          .replace('CYTV_SESSION_EXPIRES', String(s.expiresAt))
+          .replace('CYTV_RECEIVER_MODE', photos ? 'photos' : 'wallpaper')
+          .replace('CYTV_PHOTO_REMAINING', String(photos ? remaining(s) : 0))
       );
       return;
     }
     if (
-      s.kind === 'wallpaper' &&
+      phoneKind &&
       req.method === 'GET' &&
       req.url === '/wallpaper-heic-worker.js'
     ) {
@@ -332,7 +338,7 @@ exports.create = function (options) {
       return;
     }
     if (
-      s.kind === 'wallpaper' &&
+      phoneKind &&
       req.method === 'GET' &&
       req.url === '/wallpaper-heic-license.txt'
     ) {
@@ -340,13 +346,13 @@ exports.create = function (options) {
       return;
     }
     var capabilities =
-      s.kind === 'wallpaper' &&
+      phoneKind &&
       req.method === 'GET' &&
       req.url === '/v1/wallpaper-capabilities';
     if (
       !capabilities &&
       (req.method !== 'POST' ||
-        req.url !== (s.kind === 'wallpaper' ? '/v1/wallpaper' : '/v1/theme'))
+        req.url !== (phoneKind ? '/v1/wallpaper' : '/v1/theme'))
     ) {
       reply(404);
       return;
@@ -364,12 +370,32 @@ exports.create = function (options) {
       require('./wallpaper-cache')
         .space(0)
         .then(function (storage) {
-          reply(200, { wallpaperProtocol: 1, videoCacheStorage: storage });
+          var value = { wallpaperProtocol: 1, videoCacheStorage: storage };
+          if (photos) {
+            value.multiple = true;
+            value.remaining = remaining(s);
+          }
+          reply(200, value);
         });
       return;
     }
+    if (photos && s.state === 'waiting' && !remaining(s)) {
+      reply(409, {
+        returnValue: false,
+        errorCode: 'photo-limit',
+        retry: false
+      });
+      return;
+    }
     if (s.state !== 'waiting') {
-      reply(409);
+      // A photos session frees up again once the TV has read the last photo.
+      if (photos)
+        reply(409, {
+          returnValue: false,
+          errorCode: 'photo-pending',
+          retry: true
+        });
+      else reply(409);
       return;
     }
     if (req.headers['content-type'] !== 'application/json') {
@@ -400,8 +426,8 @@ exports.create = function (options) {
       if (done) return;
       var buffer = Buffer.concat(chunks, size);
       if (
-        !(s.kind === 'wallpaper'
-          ? wallpaperEnvelope(buffer, browser)
+        !(phoneKind
+          ? wallpaperEnvelope(buffer, browser || photos)
           : envelope(buffer))
       ) {
         reply(400);
@@ -420,6 +446,25 @@ exports.create = function (options) {
       s.buffer = buffer;
       s.state = 'received';
       active = false;
+      if (photos) {
+        s.count += 1;
+        // Idle deadline: every accepted photo renews the session lifetime.
+        s.expiresAt = Date.now() + ttl;
+        clearTimeout(s.timer);
+        s.timer = setTimeout(function () {
+          dispose(s);
+        }, ttl);
+        if (!remaining(s))
+          res.on('finish', function () {
+            closeListener(s);
+          });
+        reply(202, {
+          returnValue: true,
+          count: s.count,
+          remaining: remaining(s)
+        });
+        return;
+      }
       res.on('finish', function () {
         closeListener(s);
         s.sockets.slice().forEach(function (other) {
@@ -435,9 +480,26 @@ exports.create = function (options) {
         request &&
         request.kind !== undefined &&
         request.kind !== 'wallpaper' &&
+        request.kind !== 'photos' &&
         request.kind !== 'theme'
       )
         return Promise.reject(error('invalid-request'));
+      var kind = 'theme',
+        limit = maxPhotos;
+      if (request && request.kind === 'wallpaper') kind = 'wallpaper';
+      if (request && request.kind === 'photos') {
+        kind = 'photos';
+        if (request.limit !== undefined) {
+          if (
+            typeof request.limit !== 'number' ||
+            request.limit % 1 ||
+            request.limit < 1 ||
+            request.limit > maxPhotos
+          )
+            return Promise.reject(error('invalid-request'));
+          limit = request.limit;
+        }
+      }
       if (session || starting) return Promise.reject(error('receiver-busy'));
       starting = true;
       return new Promise(function (resolve, reject) {
@@ -447,9 +509,11 @@ exports.create = function (options) {
             '000000' +
             (crypto.randomBytes(4).readUInt32BE(0) % 1000000)
           ).slice(-6),
-          kind: request && request.kind === 'wallpaper' ? 'wallpaper' : 'theme',
+          kind: kind,
           addresses: addresses(),
           wrong: 0,
+          count: 0,
+          limit: limit,
           state: 'waiting',
           buffer: null,
           sockets: [],
@@ -495,14 +559,25 @@ exports.create = function (options) {
           if (s.kind === 'wallpaper') {
             response.kind = 'wallpaper';
             response.wallpaperProtocol = 1;
+          } else if (s.kind === 'photos') {
+            response.kind = 'photos';
+            response.wallpaperProtocol = 1;
+            response.photoProtocol = 1;
+            response.photoLimit = s.limit;
           }
           resolve(response);
         });
       });
     },
     status: function (id) {
-      var s = current(id);
-      return { state: s.state, size: s.buffer ? s.buffer.length : 0 };
+      var s = current(id),
+        value = { state: s.state, size: s.buffer ? s.buffer.length : 0 };
+      if (s.kind === 'photos') {
+        value.count = s.count;
+        value.remaining = remaining(s);
+        value.expiresAt = s.expiresAt;
+      }
+      return value;
     },
     read: function (id, offset) {
       var s = current(id);
@@ -514,13 +589,19 @@ exports.create = function (options) {
         offset > s.buffer.length
       )
         throw error('invalid-offset');
-      var end = Math.min(offset + CHUNK, s.buffer.length);
-      return {
-        offset: offset,
-        data: s.buffer.slice(offset, end).toString('base64'),
-        nextOffset: end,
-        done: end === s.buffer.length
-      };
+      var end = Math.min(offset + CHUNK, s.buffer.length),
+        part = {
+          offset: offset,
+          data: s.buffer.slice(offset, end).toString('base64'),
+          nextOffset: end,
+          done: end === s.buffer.length
+        };
+      // Reading the last chunk of a photo frees the session for the next one.
+      if (s.kind === 'photos' && part.done) {
+        s.buffer = null;
+        s.state = 'waiting';
+      }
+      return part;
     },
     stop: function (id) {
       try {

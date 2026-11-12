@@ -24,7 +24,15 @@
         'Maximum aantal foto’s bereikt. Verwijder foto’s om nieuwe toe te voegen.',
       'Photo storage is almost full.': 'De fotoopslag is bijna vol.',
       'Could not change photo show settings.':
-        'Kon de instellingen van de fotoshow niet wijzigen.'
+        'Kon de instellingen van de fotoshow niet wijzigen.',
+      'Done': 'Klaar',
+      'Scan the QR code with your phone, or open:':
+        'Scan de QR-code met je telefoon, of open:',
+      'Waiting for photos… {n} received': 'Wachten op foto’s… {n} ontvangen',
+      '{n} photos added.': '{n} foto’s toegevoegd.',
+      '{n} could not be added.': '{n} konden niet worden toegevoegd.',
+      'Photo receiver stopped. Try again.':
+        'Fotos ontvangen is gestopt. Probeer het opnieuw.'
     }
   };
   var panel,
@@ -37,6 +45,17 @@
     addButton,
     listHost,
     clearButton,
+    connection,
+    qr,
+    addressText,
+    pinText,
+    doneButton,
+    receiver = null,
+    receiverSignal = null,
+    receiverTimer = null,
+    receiverGeneration = 0,
+    received = 0,
+    rejected = 0,
     urls = [],
     active = false,
     current = { enabled: true, seconds: 10 },
@@ -103,6 +122,7 @@
     toggle.setAttribute('aria-pressed', String(current.enabled));
     seconds.textContent = t('Seconds per photo: {n}', { n: current.seconds });
     addButton.textContent = t('Add photos from phone');
+    if (doneButton) doneButton.textContent = t('Done');
     clearButton.textContent = t(
       armed ? 'Press again to delete all' : 'Delete all'
     );
@@ -215,6 +235,7 @@
     );
     listHost.hidden = !items.length;
     clearButton.disabled = !items.length;
+    addButton.disabled = receiving() || use.count >= use.max;
     if (!items.length) disarm();
     labels();
     restoreFocus(before);
@@ -242,6 +263,195 @@
     disarm();
     run(store().clear());
   }
+  function receiving() {
+    return !!receiverSignal;
+  }
+  function summary() {
+    var text = t('{n} photos added.', { n: received });
+    if (rejected) text += ' ' + t('{n} could not be added.', { n: rejected });
+    return text;
+  }
+  // Ends the phone session; the summary or a store error stays visible.
+  function stopReceiver(message) {
+    receiverGeneration++;
+    root.clearTimeout(receiverTimer);
+    receiverTimer = null;
+    if (receiverSignal) receiverSignal.cancelled = true;
+    receiverSignal = null;
+    var old = receiver;
+    receiver = null;
+    if (old && root.ThemeReceiver) root.ThemeReceiver.stop(old.sessionId);
+    if (addButton) addButton.disabled = false;
+    if (connection && !connection.hidden) {
+      var focused = panel.contains(document.activeElement);
+      connection.hidden = true;
+      if (focused) addButton.focus();
+    }
+    if (status && message !== undefined) status.textContent = message;
+  }
+  function decodePhoto(envelope) {
+    var image = envelope && envelope.image;
+    if (
+      !envelope ||
+      envelope.schemaVersion !== 1 ||
+      envelope.kind !== 'wallpaper' ||
+      !image ||
+      ['image/jpeg', 'image/png'].indexOf(image.mediaType) < 0 ||
+      typeof image.data !== 'string' ||
+      !Number.isInteger(image.size) ||
+      image.data.length !== 4 * Math.ceil(image.size / 3) ||
+      /[^A-Za-z0-9+/=]/.test(image.data)
+    )
+      throw Error('Invalid photo');
+    var raw = root.atob(image.data);
+    if (raw.length !== image.size) throw Error('Invalid photo');
+    var bytes = new Uint8Array(raw.length);
+    for (var i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+    if (
+      root.ThemeData &&
+      root.ThemeData.hash &&
+      root.ThemeData.hash(bytes) !== image.sha256
+    )
+      throw Error('Invalid photo');
+    return {
+      blob: new root.Blob([bytes], { type: image.mediaType }),
+      width: image.width,
+      height: image.height
+    };
+  }
+  function receive() {
+    if (receiving() || !store()) return;
+    stopReceiver();
+    var token = receiverGeneration,
+      signal = { cancelled: false };
+    receiverSignal = signal;
+    received = rejected = 0;
+    addButton.disabled = true;
+    function live() {
+      return (
+        token === receiverGeneration &&
+        active &&
+        !signal.cancelled &&
+        !document.hidden
+      );
+    }
+    function waiting() {
+      status.textContent = t('Waiting for photos… {n} received', {
+        n: received
+      });
+    }
+    function fail(error) {
+      if (!live()) return;
+      var code = error && error.code;
+      stopReceiver(
+        code === 'limit'
+          ? summary() +
+              ' ' +
+              t('Photo limit reached. Delete photos to add new ones.')
+          : code === 'storage-full'
+            ? summary() + ' ' + error.message
+            : received
+              ? summary() + ' ' + t('Photo receiver stopped. Try again.')
+              : t('Photo receiver stopped. Try again.')
+      );
+      refresh();
+    }
+    function poll() {
+      if (!live() || !receiver) return;
+      var session = receiver;
+      if (Date.now() >= session.expiresAt) {
+        fail();
+        return;
+      }
+      root.ThemeReceiver.status(session.sessionId, signal)
+        .then(function (value) {
+          if (!live()) return;
+          if (typeof value.expiresAt === 'number')
+            session.expiresAt = value.expiresAt;
+          if (value.state !== 'received') {
+            if (value.state === 'waiting' && value.remaining === 0) {
+              stopReceiver(summary());
+              refresh();
+              return;
+            }
+            receiverTimer = root.setTimeout(poll, 500);
+            return;
+          }
+          return root.ThemeReceiver.read(session.sessionId, value.size, signal)
+            .then(function (envelope) {
+              if (!live()) throw Error('Cancelled');
+              var photo;
+              try {
+                photo = decodePhoto(envelope);
+              } catch (_) {
+                rejected++;
+                return;
+              }
+              return store()
+                .add(photo)
+                .then(
+                  function () {
+                    received++;
+                  },
+                  function (error) {
+                    var code = error && error.code;
+                    if (code === 'limit' || code === 'storage-full')
+                      throw error;
+                    rejected++;
+                  }
+                );
+            })
+            .then(function () {
+              if (!live()) return;
+              waiting();
+              poll();
+            });
+        })
+        .catch(fail);
+    }
+    if (!root.ThemeReceiver) {
+      fail();
+      return;
+    }
+    store()
+      .usage()
+      .then(function (use) {
+        if (!live()) return;
+        if (use.count >= use.max) {
+          stopReceiver(
+            t('Photo limit reached. Delete photos to add new ones.')
+          );
+          refresh();
+          return;
+        }
+        return root.ThemeReceiver.start(signal, 'photos', {
+          limit: use.max - use.count
+        }).then(function (session) {
+          if (!live()) {
+            root.ThemeReceiver.stop(session.sessionId);
+            return;
+          }
+          receiver = session;
+          var url = 'http://' + session.addresses[0] + ':8879/wallpaper';
+          connection.hidden = false;
+          addressText.textContent =
+            t('Scan the QR code with your phone, or open:') +
+            ' ' +
+            session.addresses
+              .map(function (address) {
+                return 'http://' + address + ':8879/wallpaper';
+              })
+              .join(' · ');
+          pinText.textContent = 'PIN: ' + session.pin;
+          if (root.WallpaperQR)
+            root.WallpaperQR.render(qr, url + '#pin=' + session.pin);
+          doneButton.focus();
+          waiting();
+          poll();
+        });
+      })
+      .catch(fail);
+  }
   function mount(host) {
     if (panel) {
       host.appendChild(panel);
@@ -265,9 +475,7 @@
     status.setAttribute('aria-live', 'polite');
     empty = node('p', panel, 'photoShowEmpty');
     var actions = node('div', panel, null, 'photo-show-controls');
-    // Phone upload arrives in a later step; the placeholder stays disabled.
-    addButton = button(actions, 'photoShowAdd', function () {});
-    addButton.disabled = true;
+    addButton = button(actions, 'photoShowAdd', receive);
     clearButton = button(actions, 'photoShowClear', function () {
       if (root.HomeI18n && root.HomeI18n.confirm) {
         root.HomeI18n.confirm(
@@ -293,6 +501,17 @@
         if (panel) labels();
       }, 4000);
     });
+    connection = node('div', panel, 'photoShowConnection');
+    connection.hidden = true;
+    qr = node('canvas', connection, 'photoShowQR');
+    qr.setAttribute('role', 'img');
+    qr.setAttribute('aria-label', t('Add photos from phone'));
+    addressText = node('p', connection, 'photoShowAddress');
+    pinText = node('p', connection, 'photoShowPIN');
+    doneButton = button(connection, 'photoShowDone', function () {
+      stopReceiver(summary());
+      refresh();
+    });
     listHost = node('ul', panel, 'photoShowList');
     listHost.hidden = true;
     labels();
@@ -300,6 +519,7 @@
   }
   function unmount() {
     active = false;
+    stopReceiver('');
     disarm();
     generation++;
     revoke();
@@ -311,6 +531,9 @@
       if (panel && active) refresh();
     });
   root.addEventListener('pagehide', unmount);
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden && receiving()) stopReceiver('');
+  });
   root.PhotoShowPanel = {
     mount: mount,
     refresh: refresh,

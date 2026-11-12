@@ -1,90 +1,647 @@
 'use strict';
 // Self-contained LAN page; hash is the shared ThemeData SHA-256 algorithm.
-function phone() {
-  'use strict';
-  function hash(input) {
-    var a = new Uint8Array(input),
-      len = a.length,
-      bytes = new Uint8Array(((len + 9 + 63) >> 6) << 6);
-    bytes.set(a);
-    bytes[len] = 128;
-    var v = new DataView(bytes.buffer);
-    v.setUint32(bytes.length - 8, Math.floor(len / 536870912));
-    v.setUint32(bytes.length - 4, (len * 8) >>> 0);
-    var h = [
-      1779033703, 3144134277, 1013904242, 2773480762, 1359893119, 2600822924,
-      528734635, 1541459225
-    ];
-    var k = [
-      1116352408, 1899447441, 3049323471, 3921009573, 961987163, 1508970993,
-      2453635748, 2870763221, 3624381080, 310598401, 607225278, 1426881987,
-      1925078388, 2162078206, 2614888103, 3248222580, 3835390401, 4022224774,
-      264347078, 604807628, 770255983, 1249150122, 1555081692, 1996064986,
-      2554220882, 2821834349, 2952996808, 3210313671, 3336571891, 3584528711,
-      113926993, 338241895, 666307205, 773529912, 1294757372, 1396182291,
-      1695183700, 1986661051, 2177026350, 2456956037, 2730485921, 2820302411,
-      3259730800, 3345764771, 3516065817, 3600352804, 4094571909, 275423344,
-      430227734, 506948616, 659060556, 883997877, 958139571, 1322822218,
-      1537002063, 1747873779, 1955562222, 2024104815, 2227730452, 2361852424,
-      2428436474, 2756734187, 3204031479, 3329325298
-    ];
-    function r(x, n) {
-      return (x >>> n) | (x << (32 - n));
+function hash(input) {
+  var a = new Uint8Array(input),
+    len = a.length,
+    bytes = new Uint8Array(((len + 9 + 63) >> 6) << 6);
+  bytes.set(a);
+  bytes[len] = 128;
+  var v = new DataView(bytes.buffer);
+  v.setUint32(bytes.length - 8, Math.floor(len / 536870912));
+  v.setUint32(bytes.length - 4, (len * 8) >>> 0);
+  var h = [
+    1779033703, 3144134277, 1013904242, 2773480762, 1359893119, 2600822924,
+    528734635, 1541459225
+  ];
+  var k = [
+    1116352408, 1899447441, 3049323471, 3921009573, 961987163, 1508970993,
+    2453635748, 2870763221, 3624381080, 310598401, 607225278, 1426881987,
+    1925078388, 2162078206, 2614888103, 3248222580, 3835390401, 4022224774,
+    264347078, 604807628, 770255983, 1249150122, 1555081692, 1996064986,
+    2554220882, 2821834349, 2952996808, 3210313671, 3336571891, 3584528711,
+    113926993, 338241895, 666307205, 773529912, 1294757372, 1396182291,
+    1695183700, 1986661051, 2177026350, 2456956037, 2730485921, 2820302411,
+    3259730800, 3345764771, 3516065817, 3600352804, 4094571909, 275423344,
+    430227734, 506948616, 659060556, 883997877, 958139571, 1322822218,
+    1537002063, 1747873779, 1955562222, 2024104815, 2227730452, 2361852424,
+    2428436474, 2756734187, 3204031479, 3329325298
+  ];
+  function r(x, n) {
+    return (x >>> n) | (x << (32 - n));
+  }
+  var w = new Int32Array(64);
+  for (var offset = 0; offset < bytes.length; offset += 64) {
+    var i;
+    for (i = 0; i < 16; i++) w[i] = v.getInt32(offset + i * 4);
+    for (i = 16; i < 64; i++) {
+      var x = w[i - 15],
+        y = w[i - 2];
+      w[i] =
+        ((r(x, 7) ^ r(x, 18) ^ (x >>> 3)) +
+          w[i - 16] +
+          (r(y, 17) ^ r(y, 19) ^ (y >>> 10)) +
+          w[i - 7]) |
+        0;
     }
-    var w = new Int32Array(64);
-    for (var offset = 0; offset < bytes.length; offset += 64) {
-      var i;
-      for (i = 0; i < 16; i++) w[i] = v.getInt32(offset + i * 4);
-      for (i = 16; i < 64; i++) {
-        var x = w[i - 15],
-          y = w[i - 2];
-        w[i] =
-          ((r(x, 7) ^ r(x, 18) ^ (x >>> 3)) +
-            w[i - 16] +
-            (r(y, 17) ^ r(y, 19) ^ (y >>> 10)) +
-            w[i - 7]) |
+    var aa = h[0],
+      b = h[1],
+      c = h[2],
+      d = h[3],
+      e = h[4],
+      f = h[5],
+      g = h[6],
+      hh = h[7];
+    for (i = 0; i < 64; i++) {
+      var t1 =
+          (hh +
+            (r(e, 6) ^ r(e, 11) ^ r(e, 25)) +
+            ((e & f) ^ (~e & g)) +
+            k[i] +
+            w[i]) |
+          0,
+        t2 =
+          ((r(aa, 2) ^ r(aa, 13) ^ r(aa, 22)) +
+            ((aa & b) ^ (aa & c) ^ (b & c))) |
           0;
+      hh = g;
+      g = f;
+      f = e;
+      e = (d + t1) | 0;
+      d = c;
+      c = b;
+      b = aa;
+      aa = (t1 + t2) | 0;
+    }
+    [aa, b, c, d, e, f, g, hh].forEach(function (n, index) {
+      h[index] = (h[index] + n) | 0;
+    });
+  }
+  return h
+    .map(function (n) {
+      return ('00000000' + (n >>> 0).toString(16)).slice(-8);
+    })
+    .join('');
+}
+// Photo show mode: several photos, each fitted within 1080p and sent in turn.
+function photos() {
+  'use strict';
+  var TARGET = 550 * 1024,
+    lang = (navigator.language || 'en').toLowerCase(),
+    texts = {
+      en: {
+        title: 'Photos for the TV photo show',
+        intro:
+          'Choose one or more photos. They are resized on this phone and sent to the TV on your local network, one after another.',
+        pin: 'PIN shown on TV',
+        file: 'Photos',
+        send: 'Send to TV',
+        cancel: 'Cancel',
+        selected: '{n} photos selected.',
+        room: 'The TV can take {n} more photos.',
+        tooMany: 'Only the first {n} photos will be sent.',
+        full: 'The photo show is full. Delete photos on the TV first.',
+        sending: 'Sending {i} of {n}…',
+        waiting: 'Sending {i} of {n}… waiting for the TV',
+        done: 'Sent {ok} of {n} photos.',
+        failed: '{n} could not be sent.',
+        invalid: 'Not a supported photo',
+        tooLarge: 'Photo is too large',
+        heic: 'Could not convert HEIC',
+        rejected: 'Rejected by the TV',
+        pinError: 'Wrong PIN. Check the PIN on the TV.',
+        closed: 'The TV stopped receiving. Reopen it on the TV to send more.',
+        stopped: 'Cancelled.',
+        licenses: 'Open-source licenses'
+      },
+      nl: {
+        title: 'Foto’s voor de fotoshow op de tv',
+        intro:
+          'Kies een of meer foto’s. Ze worden op deze telefoon verkleind en een voor een naar de tv in je lokale netwerk gestuurd.',
+        pin: 'PIN op de tv',
+        file: 'Foto’s',
+        send: 'Naar tv sturen',
+        cancel: 'Annuleren',
+        selected: '{n} foto’s gekozen.',
+        room: 'De tv kan nog {n} foto’s ontvangen.',
+        tooMany: 'Alleen de eerste {n} foto’s worden verstuurd.',
+        full: 'De fotoshow is vol. Verwijder eerst foto’s op de tv.',
+        sending: '{i} van {n} versturen…',
+        waiting: '{i} van {n} versturen… wachten op de tv',
+        done: '{ok} van {n} foto’s verstuurd.',
+        failed: '{n} konden niet worden verstuurd.',
+        invalid: 'Geen ondersteunde foto',
+        tooLarge: 'Foto is te groot',
+        heic: 'HEIC kon niet worden omgezet',
+        rejected: 'Geweigerd door de tv',
+        pinError: 'Verkeerde PIN. Controleer de PIN op de tv.',
+        closed:
+          'De tv ontvangt niet meer. Open het ontvangen opnieuw op de tv.',
+        stopped: 'Geannuleerd.',
+        licenses: 'Opensourcelicenties'
+      },
+      ru: {
+        title: 'Фото для фотошоу на телевизоре',
+        intro:
+          'Выберите одно или несколько фото. Они уменьшаются на телефоне и по очереди отправляются на телевизор в вашей сети.',
+        pin: 'PIN на телевизоре',
+        file: 'Фото',
+        send: 'Отправить на телевизор',
+        cancel: 'Отмена',
+        selected: 'Выбрано фото: {n}.',
+        room: 'Телевизор может принять ещё {n}.',
+        tooMany: 'Будут отправлены только первые {n}.',
+        full: 'Фотошоу заполнено. Сначала удалите фото на телевизоре.',
+        sending: 'Отправка {i} из {n}…',
+        waiting: 'Отправка {i} из {n}… ожидание телевизора',
+        done: 'Отправлено {ok} из {n}.',
+        failed: 'Не удалось отправить: {n}.',
+        invalid: 'Неподдерживаемое фото',
+        tooLarge: 'Фото слишком большое',
+        heic: 'Не удалось преобразовать HEIC',
+        rejected: 'Отклонено телевизором',
+        pinError: 'Неверный PIN. Проверьте PIN на телевизоре.',
+        closed: 'Телевизор прекратил приём. Откройте приём снова.',
+        stopped: 'Отменено.',
+        licenses: 'Лицензии открытого ПО'
       }
-      var aa = h[0],
-        b = h[1],
-        c = h[2],
-        d = h[3],
-        e = h[4],
-        f = h[5],
-        g = h[6],
-        hh = h[7];
-      for (i = 0; i < 64; i++) {
-        var t1 =
-            (hh +
-              (r(e, 6) ^ r(e, 11) ^ r(e, 25)) +
-              ((e & f) ^ (~e & g)) +
-              k[i] +
-              w[i]) |
-            0,
-          t2 =
-            ((r(aa, 2) ^ r(aa, 13) ^ r(aa, 22)) +
-              ((aa & b) ^ (aa & c) ^ (b & c))) |
-            0;
-        hh = g;
-        g = f;
-        f = e;
-        e = (d + t1) | 0;
-        d = c;
-        c = b;
-        b = aa;
-        aa = (t1 + t2) | 0;
+    },
+    code = lang.split('-')[0],
+    text = texts[code] || texts.en;
+  function t(key, values) {
+    return text[key].replace(/\{([a-z]+)\}/g, function (all, name) {
+      return values && values[name] !== undefined ? String(values[name]) : all;
+    });
+  }
+  function el(id) {
+    return document.getElementById(id);
+  }
+  function make(tag, parent, id, content) {
+    var node = document.createElement(tag);
+    if (id) node.id = id;
+    if (content) node.textContent = content;
+    parent.appendChild(node);
+    return node;
+  }
+  document.documentElement.lang = texts[code] ? code : 'en';
+  document.title = text.title;
+  var main = document.querySelector('main');
+  while (main.firstChild) main.removeChild(main.firstChild);
+  make('h1', main, 'title', text.title);
+  make('p', main, 'intro', text.intro);
+  var pinLabel = make('label', main, 'pinLabel', text.pin);
+  pinLabel.setAttribute('for', 'pin');
+  var pinInput = make('input', main, 'pin');
+  pinInput.type = 'text';
+  pinInput.setAttribute('inputmode', 'numeric');
+  pinInput.setAttribute('pattern', '[0-9]{6}');
+  pinInput.setAttribute('maxlength', '6');
+  pinInput.setAttribute('autocomplete', 'off');
+  var fileLabel = make('label', main, 'fileLabel', text.file);
+  fileLabel.setAttribute('for', 'file');
+  var input = make('input', main, 'file');
+  input.type = 'file';
+  input.multiple = true;
+  input.accept = 'image/*,.heic,.heif';
+  var send = make('button', main, 'send', text.send),
+    cancelButton = make('button', main, 'cancel', text.cancel);
+  send.type = cancelButton.type = 'button';
+  var status = make('p', main, 'status');
+  status.setAttribute('role', 'status');
+  status.setAttribute('aria-live', 'polite');
+  var errors = make('ul', main, 'errors'),
+    links = make('p', main),
+    license = make('a', links, 'licensesLabel', text.licenses);
+  license.href = '/wallpaper-heic-license.txt';
+  license.target = '_blank';
+  license.rel = 'noopener';
+  license.style.color = '#65d1cb';
+
+  var fragment = /(?:^#|&)pin=(\d{6})(?:&|$)/.exec(location.hash);
+  if (fragment) pinInput.value = fragment[1];
+  fragment = null;
+  history.replaceState(null, '', location.pathname);
+  var remaining = Number('CYTV_PHOTO_REMAINING'),
+    files = [],
+    busy = false,
+    serial = 0,
+    xhr = null,
+    worker = null,
+    workerTimer = null,
+    timer = null;
+  if (!(remaining >= 0)) remaining = 0;
+  function controls() {
+    send.disabled =
+      busy || !files.length || !remaining || !/^\d{6}$/.test(pinInput.value);
+    input.disabled = pinInput.disabled = busy;
+  }
+  function describe() {
+    if (!remaining) {
+      status.textContent = text.full;
+      return;
+    }
+    var parts = [];
+    if (files.length) parts.push(t('selected', { n: files.length }));
+    parts.push(t('room', { n: remaining }));
+    if (files.length > remaining) parts.push(t('tooMany', { n: remaining }));
+    status.textContent = parts.join(' ');
+  }
+  function stopWorker() {
+    if (worker) worker.terminate();
+    worker = null;
+    clearTimeout(workerTimer);
+    workerTimer = null;
+  }
+  function failure(key) {
+    var e = Error(key);
+    e.key = key;
+    return e;
+  }
+  function sniff(file) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function () {
+        var bytes = new Uint8Array(reader.result),
+          heic = false;
+        if (
+          bytes.length >= 16 &&
+          String.fromCharCode.apply(null, bytes.subarray(4, 8)) === 'ftyp'
+        ) {
+          var boxSize = new DataView(reader.result).getUint32(0);
+          if (
+            boxSize >= 16 &&
+            boxSize <= file.size &&
+            boxSize <= bytes.length &&
+            boxSize % 4 === 0
+          )
+            for (var at = 8; at + 4 <= boxSize; at += 4) {
+              if (at === 12) continue;
+              if (
+                [
+                  'heic',
+                  'heix',
+                  'hevc',
+                  'hevx',
+                  'heim',
+                  'heis',
+                  'hevm',
+                  'hevs',
+                  'mif1',
+                  'msf1'
+                ].indexOf(
+                  String.fromCharCode.apply(null, bytes.subarray(at, at + 4))
+                ) >= 0
+              )
+                heic = true;
+            }
+        }
+        resolve(heic);
+      };
+      reader.onerror = function () {
+        reject(failure('invalid'));
+      };
+      reader.readAsArrayBuffer(file.slice(0, 4096));
+    });
+  }
+  // Returns a drawable plus a release function for its memory.
+  function decode(file, heic) {
+    return new Promise(function (resolve, reject) {
+      var url = URL.createObjectURL(file),
+        image = new Image();
+      function release() {
+        image.onload = image.onerror = null;
+        image.removeAttribute('src');
+        if (url) URL.revokeObjectURL(url);
+        url = null;
       }
-      [aa, b, c, d, e, f, g, hh].forEach(function (n, index) {
-        h[index] = (h[index] + n) | 0;
+      image.onload = function () {
+        if (!image.naturalWidth || !image.naturalHeight) {
+          release();
+          reject(failure('invalid'));
+          return;
+        }
+        if (image.naturalWidth * image.naturalHeight > 50000000) {
+          release();
+          reject(failure('tooLarge'));
+          return;
+        }
+        resolve({
+          source: image,
+          width: image.naturalWidth,
+          height: image.naturalHeight,
+          release: release
+        });
+      };
+      image.onerror = function () {
+        release();
+        if (!heic) {
+          reject(failure('invalid'));
+          return;
+        }
+        // Browsers without native HEIC use the bundled local decoder.
+        function fail() {
+          stopWorker();
+          reject(failure('heic'));
+        }
+        try {
+          worker = new Worker('/wallpaper-heic-worker.js');
+          workerTimer = setTimeout(fail, 60000);
+          worker.onerror = fail;
+          worker.onmessage = function (event) {
+            var result = event.data;
+            if (
+              !result ||
+              result.error ||
+              !result.width ||
+              !result.height ||
+              result.width * result.height > 50000000 ||
+              !result.rgba ||
+              result.rgba.byteLength !== result.width * result.height * 4
+            )
+              return fail();
+            stopWorker();
+            try {
+              var canvas = document.createElement('canvas');
+              canvas.width = result.width;
+              canvas.height = result.height;
+              canvas
+                .getContext('2d')
+                .putImageData(
+                  new ImageData(
+                    new Uint8ClampedArray(result.rgba),
+                    result.width,
+                    result.height
+                  ),
+                  0,
+                  0
+                );
+              resolve({
+                source: canvas,
+                width: canvas.width,
+                height: canvas.height,
+                release: function () {
+                  canvas.width = canvas.height = 0;
+                }
+              });
+            } catch (_) {
+              fail();
+            }
+          };
+          worker.postMessage(file);
+        } catch (_) {
+          fail();
+        }
+      };
+      image.src = url;
+    });
+  }
+  function toBlob(canvas, quality) {
+    return new Promise(function (resolve) {
+      canvas.toBlob(resolve, 'image/jpeg', quality);
+    });
+  }
+  // Fit within 1920 x 1080 without cropping, then step JPEG quality and size
+  // down until the photo is about 550 KB.
+  function encode(picture) {
+    var canvas = document.createElement('canvas'),
+      scale = Math.min(1, 1920 / picture.width, 1080 / picture.height),
+      quality = 0.85;
+    function release() {
+      canvas.width = canvas.height = 0;
+    }
+    function attempt() {
+      canvas.width = Math.max(1, Math.floor(picture.width * scale));
+      canvas.height = Math.max(1, Math.floor(picture.height * scale));
+      var context = canvas.getContext('2d');
+      context.fillStyle = '#000';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(picture.source, 0, 0, canvas.width, canvas.height);
+      return toBlob(canvas, quality).then(function (blob) {
+        if (!blob) throw failure('invalid');
+        if (blob.size <= TARGET)
+          return { blob: blob, width: canvas.width, height: canvas.height };
+        if (quality > 0.5) quality = Math.max(0.5, quality - 0.1);
+        else {
+          scale *= 0.85;
+          if (canvas.width < 160 || canvas.height < 90)
+            throw failure('tooLarge');
+        }
+        return attempt();
       });
     }
-    return h
-      .map(function (n) {
-        return ('00000000' + (n >>> 0).toString(16)).slice(-8);
-      })
-      .join('');
+    return attempt().then(
+      function (value) {
+        release();
+        return value;
+      },
+      function (error) {
+        release();
+        throw error;
+      }
+    );
   }
-
+  function payload(result) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function () {
+        var bytes = new Uint8Array(reader.result),
+          raw = '';
+        for (var at = 0; at < bytes.length; at += 8192)
+          raw += String.fromCharCode.apply(null, bytes.subarray(at, at + 8192));
+        resolve(
+          JSON.stringify({
+            schemaVersion: 1,
+            kind: 'wallpaper',
+            source: 'phone',
+            image: {
+              mediaType: 'image/jpeg',
+              width: result.width,
+              height: result.height,
+              size: bytes.length,
+              sha256: hash(bytes),
+              data: btoa(raw)
+            },
+            variants: []
+          })
+        );
+      };
+      reader.onerror = function () {
+        reject(failure('invalid'));
+      };
+      reader.readAsArrayBuffer(result.blob);
+    });
+  }
+  // Resolves 'sent', 'retry' or 'limit'; rejects with fatal or per-file errors.
+  function post(body, pin) {
+    return new Promise(function (resolve, reject) {
+      var request = new XMLHttpRequest();
+      xhr = request;
+      request.open('POST', '/v1/wallpaper');
+      request.setRequestHeader('Content-Type', 'application/json');
+      request.setRequestHeader('X-CYTV-PIN', pin);
+      request.timeout = 30000;
+      request.onload = function () {
+        xhr = null;
+        var value = null;
+        try {
+          value = JSON.parse(request.responseText);
+        } catch (_) {}
+        if (request.status === 202) {
+          if (value && typeof value.remaining === 'number')
+            remaining = value.remaining;
+          else remaining = Math.max(0, remaining - 1);
+          resolve('sent');
+        } else if (request.status === 409 && value && value.retry === true)
+          resolve('retry');
+        else if (request.status === 409 && value && value.errorCode)
+          resolve('limit');
+        else if (request.status === 403) reject(failure('pinError'));
+        else if (request.status === 400 || request.status === 413)
+          reject(failure('rejected'));
+        else reject(failure('closed'));
+      };
+      request.onerror = request.ontimeout = function () {
+        xhr = null;
+        reject(failure('closed'));
+      };
+      request.onabort = function () {
+        xhr = null;
+        reject(failure('stopped'));
+      };
+      request.send(body);
+    });
+  }
+  function wait(ms) {
+    return new Promise(function (resolve) {
+      timer = setTimeout(resolve, ms);
+    });
+  }
+  function report(file, key) {
+    make('li', errors, null, (file.name || 'Photo') + ': ' + text[key]);
+  }
+  function run() {
+    if (send.disabled) return;
+    var token = ++serial,
+      pin = pinInput.value,
+      queue = files.slice(0, remaining),
+      total = queue.length,
+      sent = 0,
+      failed = 0,
+      index = 0;
+    busy = true;
+    while (errors.firstChild) errors.removeChild(errors.firstChild);
+    controls();
+    function live() {
+      return token === serial;
+    }
+    function finish(key) {
+      if (!live()) return;
+      busy = false;
+      files = [];
+      input.value = '';
+      var parts = [t('done', { ok: sent, n: total })];
+      if (failed) parts.push(t('failed', { n: failed }));
+      if (key) parts.push(text[key]);
+      else if (!remaining) parts.push(text.full);
+      else parts.push(t('room', { n: remaining }));
+      status.textContent = parts.join(' ');
+      if (key === 'pinError' || key === 'closed') pinInput.value = '';
+      controls();
+    }
+    function next() {
+      if (!live()) return;
+      if (index >= queue.length) return finish();
+      if (!remaining) return finish();
+      var file = queue[index++],
+        picture = null,
+        tries = 0;
+      status.textContent = t('sending', { i: index, n: total });
+      function attempt(body) {
+        return post(body, pin).then(function (result) {
+          if (!live()) throw failure('stopped');
+          if (result === 'retry' && tries++ < 85) {
+            status.textContent = t('waiting', { i: index, n: total });
+            return wait(700).then(function () {
+              if (!live()) throw failure('stopped');
+              status.textContent = t('sending', { i: index, n: total });
+              return attempt(body);
+            });
+          }
+          if (result === 'retry') throw failure('closed');
+          if (result === 'limit') {
+            remaining = 0;
+            throw failure('full');
+          }
+          sent++;
+        });
+      }
+      var step =
+        !file.size || file.size > 32 * 1024 * 1024
+          ? Promise.reject(failure(file.size ? 'tooLarge' : 'invalid'))
+          : sniff(file);
+      step
+        .then(function (heic) {
+          if (!live()) throw failure('stopped');
+          return decode(file, heic);
+        })
+        .then(function (value) {
+          picture = value;
+          if (!live()) throw failure('stopped');
+          return encode(picture);
+        })
+        .then(function (result) {
+          picture.release();
+          picture = null;
+          if (!live()) throw failure('stopped');
+          return payload(result);
+        })
+        .then(attempt)
+        .then(next, function (error) {
+          if (picture) picture.release();
+          picture = null;
+          var key = (error && error.key) || 'invalid';
+          if (key === 'stopped') return;
+          if (key === 'pinError' || key === 'closed' || key === 'full') {
+            failed += queue.length - sent - failed;
+            finish(key);
+            return;
+          }
+          failed++;
+          report(file, key);
+          next();
+        });
+    }
+    next();
+  }
+  function cancel() {
+    serial++;
+    stopWorker();
+    clearTimeout(timer);
+    if (xhr) {
+      var request = xhr;
+      xhr = null;
+      request.abort();
+    }
+    if (busy) status.textContent = text.stopped;
+    busy = false;
+    files = [];
+    input.value = '';
+    controls();
+  }
+  input.onchange = function () {
+    files = Array.prototype.slice.call(this.files || []);
+    while (errors.firstChild) errors.removeChild(errors.firstChild);
+    describe();
+    controls();
+  };
+  pinInput.oninput = controls;
+  send.onclick = run;
+  cancelButton.onclick = cancel;
+  window.addEventListener('pagehide', cancel);
+  describe();
+  controls();
+}
+function phone() {
+  'use strict';
   var ru = /^ru\b/i.test(navigator.language),
     texts = ru
       ? {
@@ -500,6 +1057,7 @@ function phone() {
 
 module.exports =
   '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>TV wallpaper</title><style>*{box-sizing:border-box}body{margin:0;background:#101820;color:#f5f7fa;font:16px/1.5 system-ui,sans-serif}main{max-width:560px;padding:24px 20px 40px;margin:auto}h1{font-size:28px;line-height:1.2}p{margin:16px 0}label{display:block;margin:16px 0 6px}input,button{font:inherit;min-height:48px}input[type=file]{width:100%;padding:8px 0}input[type=range]{width:100%}input[type=text]{width:100%;padding:10px;border:1px solid #8fa6b6;border-radius:6px;background:#182934;color:inherit}canvas{display:block;width:100%;height:auto;aspect-ratio:16/9;background:#000;margin:20px 0}button{padding:10px 16px;border:0;border-radius:6px;cursor:pointer;background:#65d1cb;color:#0e2629;margin:8px 8px 0 0}button:disabled{opacity:.5;cursor:default}#warning{border-left:4px solid #e6b85e;padding:12px;background:#24303a}#ack{width:24px;height:24px;min-height:24px;vertical-align:middle;margin-right:10px}#status{min-height:48px}:focus-visible{outline:3px solid #e6b85e;outline-offset:3px}</style><main><h1 id="title"></h1><p id="intro"></p><label for="pin" id="pinLabel">PIN</label><input id="pin" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="off"><label for="file" id="fileLabel">JPG / PNG / HEIC</label><input id="file" type="file" accept="image/jpeg,image/png,image/heic,image/heif,image/heic-sequence,image/heif-sequence,.heic,.heif"><canvas id="preview" width="320" height="180" aria-label="16:9 crop preview"></canvas><label for="zoom">Zoom</label><input id="zoom" type="range" min="1" max="3" step=".05" value="1" disabled><label for="x">Horizontal position</label><input id="x" type="range" min="0" max="100" value="50" disabled><label for="y">Vertical position</label><input id="y" type="range" min="0" max="100" value="50" disabled><p id="warning"></p><label><input id="ack" type="checkbox"><span id="ackLabel"></span></label><button id="send" disabled></button><button id="cancel"></button><p id="status" role="status" aria-live="polite"></p><p><a id="licensesLabel" href="/wallpaper-heic-license.txt" target="_blank" rel="noopener" style="color:#65d1cb">Open-source licenses</a></p></main><script>' +
-  '(' +
+  hash.toString() +
+  photos.toString() +
   phone.toString() +
-  ')();</script></html>';
+  "if ('CYTV_RECEIVER_MODE' === 'photos') photos(); else phone();</script></html>";
