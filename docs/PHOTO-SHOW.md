@@ -38,12 +38,17 @@ this session kind too, without Root UI.
 
 ## Idle slideshow
 
-`launcher/photo-show.js` starts a full-screen slideshow after 120 seconds without
+`launcher/photo-show.js` starts a full-screen slideshow after 60 seconds without
 key or pointer input while Home is the active view (no settings, panel, move,
 picker or edit mode). Any key or pointer movement stops it and is not passed on to
 Home. Only two image layers exist and at most two photo URLs are alive; photos
 crossfade by opacity and shift a few pixels each time to reduce OLED burn-in.
 Home routing and the triple-Home emergency stop are not changed.
+
+The idle time is 60 seconds because the LG OLED screensaver starts after a few
+minutes without input (about two minutes observed on the BX) and also covers the
+slideshow; webOS only skips it for full-screen video. The slideshow therefore runs
+until the TV's own screensaver takes over.
 
 ## Preview
 

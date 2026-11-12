@@ -1,7 +1,7 @@
 /* Idle photo show on Home. Two <img> layers crossfade; at most two blob URLs live at once. */
 (function (root) {
   'use strict';
-  var IDLE_MS = 120000,
+  var IDLE_MS = 60000,
     FADE_MS = 1200,
     // Small anti burn-in offsets (px), one per photo, cycling.
     OFFSETS = [
