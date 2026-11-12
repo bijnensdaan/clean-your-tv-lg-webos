@@ -342,4 +342,51 @@
       }, 300);
       return media;
     };
+  // ?photos=demo (on the preview page or the launcher URL) seeds six generated
+  // gradient photos into an empty photo show. Preview-only; never packaged.
+  function photoDemoRequested() {
+    var query = location.search;
+    try {
+      if (window.parent && window.parent !== window)
+        query += '&' + window.parent.location.search.slice(1);
+    } catch (_) {}
+    return /(^|[?&])photos=demo(&|$)/.test(query);
+  }
+  function seedDemoPhotos() {
+    var store = window.PhotoShowStore;
+    if (!store) return;
+    var hues = [210, 28, 160, 330, 260, 95];
+    store
+      .list()
+      .then(function (items) {
+        if (items.length) return;
+        return hues.reduce(function (chain, hue, index) {
+          return chain.then(function () {
+            var canvas = document.createElement('canvas');
+            canvas.width = 1280;
+            canvas.height = 720;
+            var ctx = canvas.getContext('2d'),
+              fill = ctx.createLinearGradient(0, 0, 1280, 720);
+            fill.addColorStop(0, 'hsl(' + hue + ',70%,55%)');
+            fill.addColorStop(1, 'hsl(' + ((hue + 60) % 360) + ',65%,22%)');
+            ctx.fillStyle = fill;
+            ctx.fillRect(0, 0, 1280, 720);
+            ctx.fillStyle = 'rgba(255,255,255,0.9)';
+            ctx.font = 'bold 280px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(String(index + 1), 640, 370);
+            return new Promise(function (resolve) {
+              canvas.toBlob(resolve, 'image/jpeg', 0.85);
+            }).then(function (blob) {
+              return store.add(blob);
+            });
+          });
+        }, Promise.resolve());
+      })
+      .catch(function (error) {
+        message('Demo photos failed: ' + (error && error.message));
+      });
+  }
+  if (photoDemoRequested()) window.addEventListener('load', seedDemoPhotos);
 })();

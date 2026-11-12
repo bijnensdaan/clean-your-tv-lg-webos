@@ -19,6 +19,8 @@
   function t(source) {
     if (source === 'Wallpapers' && root.HomeWallpaperPanel)
       return HomeWallpaperPanel.t(source);
+    if (source === 'Photo show' && root.PhotoShowPanel)
+      return PhotoShowPanel.t(source);
     var language = root.HomeI18n && HomeI18n.language(),
       pair = labels[language];
     if (pair && source === 'Appearance') return pair[0];
@@ -113,6 +115,8 @@
         HomeThemePanel.activate(groups[index].id === 'themes');
       if (root.HomeWallpaperPanel)
         HomeWallpaperPanel.activate(groups[index].id === 'wallpapers');
+      if (root.PhotoShowPanel)
+        PhotoShowPanel.activate(groups[index].id === 'photos');
       scrollHint();
     }
     var weatherReady = root.HomeWeather
@@ -131,17 +135,19 @@
         createIcon(
           group.id === 'wallpapers'
             ? 'M3 3h18v18H3zM3 16l6-6 5 5 3-3 4 4M16 7h.01'
-            : paths[
-                [
-                  'home',
-                  'appearance',
-                  'themes',
-                  'language',
-                  'updates',
-                  'advanced',
-                  'developer'
-                ].indexOf(group.id)
-              ]
+            : group.id === 'photos'
+              ? 'M2 6h16v12H2zM8 9.5v5l4.5-2.5zM6 3h16v12'
+              : paths[
+                  [
+                    'home',
+                    'appearance',
+                    'themes',
+                    'language',
+                    'updates',
+                    'advanced',
+                    'developer'
+                  ].indexOf(group.id)
+                ]
         )
       );
       var text = document.createElement('span');

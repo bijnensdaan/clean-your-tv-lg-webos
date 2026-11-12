@@ -3,7 +3,7 @@ from pathlib import Path
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
-FILES = ['wallpaper.js', 'wallpaper.css', 'wallpaper-panel.js', 'wallpaper-panel.css', 'wallpaper-locales.js', 'wallpaper-media-cache.js', 'personal-wallpaper.js', 'wallpaper-qr.js', 'wallpaper-library.js', 'wallpaper-stream.js']
+FILES = ['wallpaper.js', 'wallpaper.css', 'wallpaper-panel.js', 'wallpaper-panel.css', 'wallpaper-locales.js', 'wallpaper-media-cache.js', 'personal-wallpaper.js', 'wallpaper-qr.js', 'wallpaper-library.js', 'wallpaper-stream.js', 'photo-show-store.js', 'photo-show-panel.js']
 
 class WallpaperPackageTest(unittest.TestCase):
     def test_explicit_public_inventories_include_all_wallpaper_modules(self):
@@ -27,6 +27,8 @@ class WallpaperPackageTest(unittest.TestCase):
         self.assertLess(html.index('src="wallpaper.js"'), html.index('src="theme-runtime.js"'))
         self.assertLess(html.index('src="wallpaper-media-cache.js"'), html.index('src="theme-manager.js"'))
         self.assertLess(html.index('src="wallpaper-panel.js"'), html.index('src="renewal-panel.js"'))
+        self.assertLess(html.index('src="wallpaper-locales.js"'), html.index('src="photo-show-panel.js"'))
+        self.assertLess(html.index('src="photo-show-panel.js"'), html.index('src="settings-categories.js"'))
         self.assertIn("media-src 'self' blob: http://127.0.0.1:*", (ROOT / 'scripts/tv-dev.py').read_text())
 
     def test_legacy_root_restore_clears_theme_preferences(self):

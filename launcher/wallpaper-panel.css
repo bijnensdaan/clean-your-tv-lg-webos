@@ -139,3 +139,93 @@
   margin-top: 6px;
   color: #c5d0dd;
 }
+
+/* Photo show settings reuse the wallpaper settings palette. */
+#photoShowPanel {
+  width: 100%;
+  min-width: 0;
+}
+#photoShowPanel [hidden] {
+  display: none !important;
+}
+#photoShowPanel p {
+  font-size: 22px;
+  line-height: 1.4;
+  color: #b9c4d2;
+  margin: 8px 0;
+  overflow-wrap: break-word;
+}
+#photoShowPanel .photo-show-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 8px 0;
+}
+#photoShowPanel button {
+  box-sizing: border-box;
+  width: auto;
+  min-height: 56px;
+  font: inherit;
+  font-size: 24px;
+  padding: 12px 18px;
+  margin: 6px 12px 6px 0;
+  color: #f5f7fa;
+  background: #343941;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+}
+#photoShowPanel button[aria-pressed='true'] {
+  border-color: #bcd8f6;
+  background: #263e56;
+}
+#photoShowPanel button:focus {
+  outline: 3px solid #dbe9ff;
+  outline-offset: 3px;
+  background: #384b65;
+  color: #fff;
+}
+#photoShowPanel button:disabled,
+#photoShowPanel button[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: default;
+}
+#photoShowWarning {
+  border-left: 3px solid #f2c46d;
+  padding-left: 12px;
+  color: #f5e2b8 !important;
+}
+#photoShowList {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  border-top: 1px solid #526170;
+}
+#photoShowList .photo-show-row {
+  display: flex;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #39434e;
+}
+#photoShowList .photo-show-thumb {
+  display: block;
+  flex: none;
+  width: 160px;
+  height: 90px;
+  margin-right: 16px;
+  border-radius: 6px;
+  background: #111820;
+}
+#photoShowList .photo-show-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 22px;
+  color: #dfe6ee;
+  overflow-wrap: break-word;
+}
+#photoShowList button {
+  min-height: 48px;
+  font-size: 21px;
+  padding: 8px 14px;
+  margin: 4px 0 4px 10px;
+}

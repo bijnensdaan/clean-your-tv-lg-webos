@@ -624,6 +624,7 @@
     };
     function close() {
       if (window.HomeWallpaperPanel) HomeWallpaperPanel.unmount();
+      if (window.PhotoShowPanel) PhotoShowPanel.unmount();
       if (window.HomeThemePanel) HomeThemePanel.unmount();
       panel.classList.add('hidden');
       if (window.ThemeRuntime) ThemeRuntime.resume('settings');
@@ -748,6 +749,8 @@
     );
     var wallpapers = document.createElement('div');
     if (window.HomeWallpaperPanel) HomeWallpaperPanel.mount(wallpapers);
+    var photos = document.createElement('div');
+    if (window.PhotoShowPanel) PhotoShowPanel.mount(photos);
     if (window.SettingsCategories)
       categories = SettingsCategories.attach(panel, main, [
         {
@@ -769,6 +772,7 @@
           elements: [document.getElementById('homeThemeHost').parentNode]
         },
         { id: 'wallpapers', label: 'Wallpapers', elements: [wallpapers] },
+        { id: 'photos', label: 'Photo show', elements: [photos] },
         {
           id: 'language',
           label: 'Language',
