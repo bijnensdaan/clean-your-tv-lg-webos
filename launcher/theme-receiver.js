@@ -12,20 +12,29 @@
       '/'
     );
   }
+  var UNAVAILABLE =
+    'Theme receiver unavailable. Update Home and its service, then try again.';
+  // Messages stay translatable; errorCode/errorText carry the exact cause.
+  function failure(message, code, text) {
+    var error = Error(message);
+    error.errorCode = code;
+    error.errorText = text || '';
+    return error;
+  }
   function rpc(method, payload, signal) {
     return new Promise(function (resolve, reject) {
       var bridge,
         done = false,
-        timer = setTimeout(
-          function () {
-            finish(
-              Error(
-                'Theme receiver unavailable. Update Home and its service, then try again.'
-              )
-            );
-          },
-          method === 'themeReceiverStart' ? 10000 : 5000
-        );
+        wait = method === 'themeReceiverStart' ? 10000 : 5000,
+        timer = setTimeout(function () {
+          finish(
+            failure(
+              UNAVAILABLE,
+              'timeout',
+              method + ' did not answer within ' + wait / 1000 + ' s'
+            )
+          );
+        }, wait);
       function finish(error, value) {
         if (done) return;
         done = true;
@@ -44,7 +53,13 @@
           try {
             response = JSON.parse(raw);
           } catch (_) {
-            finish(Error('Invalid theme receiver response'));
+            finish(
+              failure(
+                'Invalid theme receiver response',
+                'invalid-response',
+                method + ' returned non-JSON'
+              )
+            );
             return;
           }
           if (
@@ -67,8 +82,16 @@
           }
           if (!response || response.returnValue !== true) {
             finish(
-              Error(
-                'Theme receiver unavailable. Update Home and its service, then try again.'
+              failure(
+                UNAVAILABLE,
+                (response &&
+                  (response.errorCode !== undefined
+                    ? String(response.errorCode)
+                    : response.errorText && String(response.errorText))) ||
+                  'service-error',
+                response && response.errorText !== undefined
+                  ? String(response.errorText)
+                  : method + ' failed'
               )
             );
             return;
@@ -76,10 +99,12 @@
           finish(null, response);
         };
         bridge.call(service() + method, JSON.stringify(payload));
-      } catch (_) {
+      } catch (e) {
         finish(
-          Error(
-            'Theme receiver unavailable. Update Home and its service, then try again.'
+          failure(
+            UNAVAILABLE,
+            'bridge-unavailable',
+            (e && e.message) || 'PalmServiceBridge call failed'
           )
         );
       }
@@ -119,7 +144,16 @@
           s.photoLimit < 1)
       ) {
         if (typeof s.sessionId === 'string') stop(s.sessionId);
-        throw Error('Photo receiver unavailable. Update Home and its service.');
+        throw failure(
+          'Photo receiver unavailable. Update Home and its service.',
+          'photo-protocol',
+          'Service answered kind ' +
+            s.kind +
+            ', photoProtocol ' +
+            s.photoProtocol +
+            ', photoLimit ' +
+            s.photoLimit
+        );
       }
       if (
         kind === 'wallpaper' &&
@@ -145,7 +179,17 @@
         s.expiresAt > Date.now() + 610000
       ) {
         if (typeof s.sessionId === 'string') stop(s.sessionId);
-        throw Error('Invalid theme receiver response');
+        throw failure(
+          'Invalid theme receiver response',
+          'invalid-session-response',
+          'Start answer failed validation (addresses ' +
+            JSON.stringify(s.addresses) +
+            ', port ' +
+            s.port +
+            ', expiresAt in ' +
+            Math.round((s.expiresAt - Date.now()) / 1000) +
+            ' s)'
+        );
       }
       return s;
     });
@@ -154,19 +198,29 @@
     return rpc('themeReceiverStatus', { sessionId: id }, signal).then(
       function (s) {
         if (['waiting', 'receiving', 'received'].indexOf(s.state) < 0)
-          throw Error('Theme receiver session expired. Try again.');
+          throw failure(
+            'Theme receiver session expired. Try again.',
+            'session-state',
+            'Receiver state ' + s.state
+          );
         if (
           s.state === 'received' &&
           (!Number.isInteger(s.size) || s.size <= 0 || s.size > limit)
         )
-          throw Error('Invalid received theme size');
+          throw failure(
+            'Invalid received theme size',
+            'invalid-size',
+            'Received size ' + s.size
+          );
         return s;
       }
     );
   }
   function read(id, size, signal) {
     if (!Number.isInteger(size) || size <= 0 || size > limit)
-      return Promise.reject(Error('Invalid received theme size'));
+      return Promise.reject(
+        failure('Invalid received theme size', 'invalid-size', 'Size ' + size)
+      );
     var bytes = new Uint8Array(size),
       offset = 0;
     function next() {
@@ -184,7 +238,11 @@
           /[^A-Za-z0-9+/=]/.test(part.data) ||
           /=[^=]|={3}/.test(part.data)
         )
-          throw Error('Invalid received theme chunk');
+          throw failure(
+            'Invalid received theme chunk',
+            'invalid-chunk',
+            'Chunk at offset ' + offset
+          );
         var raw = atob(part.data),
           end = offset + raw.length;
         if (
@@ -194,7 +252,11 @@
           part.nextOffset !== end ||
           part.done !== (end === size)
         )
-          throw Error('Invalid received theme chunk');
+          throw failure(
+            'Invalid received theme chunk',
+            'invalid-chunk',
+            'Chunk at offset ' + offset
+          );
         for (var i = 0; i < raw.length; i++)
           bytes[offset + i] = raw.charCodeAt(i);
         offset = end;

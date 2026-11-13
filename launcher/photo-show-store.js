@@ -4,8 +4,10 @@
   var MAX = 50,
     NEAR = 45,
     MAX_BYTES = 2 * 1024 * 1024,
-    // nearFull also triggers when known free app storage drops below this.
-    LOW_FREE = 50 * 1024 * 1024,
+    MIB = 1024 * 1024,
+    // Storage nearFull: known free space below max(10 MiB, free slots x 0.6 MiB).
+    LOW_FREE_MIN = 10 * MIB,
+    PER_PHOTO = 0.6 * MIB,
     THUMB_W = 240,
     THUMB_H = 135,
     SECONDS = [5, 8, 10, 15, 20, 30, 60],
@@ -110,7 +112,12 @@
           reject(
             cause && cause.name === 'QuotaExceededError'
               ? cause
-              : Error('Could not save photos. Check available app storage.')
+              : failure(
+                  'save-failed',
+                  'Could not save photos' +
+                    (cause && cause.name ? ' (' + cause.name + ')' : '') +
+                    '. Check available app storage.'
+                )
           );
         };
         try {
@@ -421,7 +428,11 @@
       return value;
     });
   }
-  // nearFull: 45+ photos, or the known free app storage is below 50 MiB.
+  // nearFull: 45+ photos, or the known free app storage is below
+  // max(10 MiB, remaining slots x 0.6 MiB). freeBytes is null when unknown.
+  function lowFree(free, count) {
+    return free < Math.max(LOW_FREE_MIN, Math.max(0, MAX - count) * PER_PHOTO);
+  }
   function usage() {
     return list().then(function (items) {
       var bytes = 0;
@@ -433,14 +444,22 @@
         max: MAX,
         bytes: bytes,
         available: null,
+        freeBytes: null,
+        storageLow: false,
         nearFull: items.length >= NEAR
       };
       if (!root.StorageBudget) return base;
       return root.StorageBudget.estimate(0).then(
         function (b) {
-          base.available = b.available;
-          if (b.available !== null && b.available < LOW_FREE)
+          var free =
+            b && typeof b.available === 'number' && isFinite(b.available)
+              ? b.available
+              : null;
+          base.available = base.freeBytes = free;
+          if (free !== null && lowFree(free, base.count)) {
+            base.storageLow = true;
             base.nearFull = true;
+          }
           return base;
         },
         function () {

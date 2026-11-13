@@ -211,6 +211,11 @@
   padding-left: 12px;
   color: #f5e2b8 !important;
 }
+#photoShowStorage {
+  font-size: 18px !important;
+  color: #8592a3 !important;
+  margin: 2px 0 !important;
+}
 #photoShowList {
   list-style: none;
   margin: 12px 0 0;

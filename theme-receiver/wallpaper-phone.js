@@ -102,8 +102,9 @@ function photos() {
         full: 'The photo show is full. Delete photos on the TV first.',
         sending: 'Sending {i} of {n}…',
         waiting: 'Sending {i} of {n}… waiting for the TV',
-        done: 'Sent {ok} of {n} photos.',
-        failed: '{n} could not be sent.',
+        tally: '{ok} sent, {failed} failed.',
+        network: 'network error',
+        timeout: 'no answer within 30 s',
         invalid: 'Not a supported photo',
         tooLarge: 'Photo is too large',
         heic: 'Could not convert HEIC',
@@ -127,8 +128,9 @@ function photos() {
         full: 'De fotoshow is vol. Verwijder eerst foto’s op de tv.',
         sending: '{i} van {n} versturen…',
         waiting: '{i} van {n} versturen… wachten op de tv',
-        done: '{ok} van {n} foto’s verstuurd.',
-        failed: '{n} konden niet worden verstuurd.',
+        tally: '{ok} verstuurd, {failed} mislukt.',
+        network: 'netwerkfout',
+        timeout: 'geen antwoord binnen 30 s',
         invalid: 'Geen ondersteunde foto',
         tooLarge: 'Foto is te groot',
         heic: 'HEIC kon niet worden omgezet',
@@ -153,8 +155,9 @@ function photos() {
         full: 'Фотошоу заполнено. Сначала удалите фото на телевизоре.',
         sending: 'Отправка {i} из {n}…',
         waiting: 'Отправка {i} из {n}… ожидание телевизора',
-        done: 'Отправлено {ok} из {n}.',
-        failed: 'Не удалось отправить: {n}.',
+        tally: 'Отправлено: {ok}, ошибок: {failed}.',
+        network: 'ошибка сети',
+        timeout: 'нет ответа за 30 с',
         invalid: 'Неподдерживаемое фото',
         tooLarge: 'Фото слишком большое',
         heic: 'Не удалось преобразовать HEIC',
@@ -251,10 +254,19 @@ function photos() {
     clearTimeout(workerTimer);
     workerTimer = null;
   }
-  function failure(key) {
+  function failure(key, detail) {
     var e = Error(key);
     e.key = key;
+    e.detail = detail || '';
     return e;
+  }
+  // "HTTP 409 photo-limit: text" from the receiver's JSON answer.
+  function answer(request, value) {
+    var parts = ['HTTP ' + request.status];
+    if (value && value.errorCode) parts.push(String(value.errorCode));
+    var detail = parts.join(' ');
+    if (value && value.errorText) detail += ': ' + String(value.errorText);
+    return detail;
   }
   function sniff(file) {
     return new Promise(function (resolve, reject) {
@@ -470,7 +482,8 @@ function photos() {
       reader.readAsArrayBuffer(result.blob);
     });
   }
-  // Resolves 'sent', 'retry' or 'limit'; rejects with fatal or per-file errors.
+  // Resolves { result: 'sent' | 'retry' | 'limit', detail }; rejects with
+  // fatal or per-file errors that carry the HTTP status and server code.
   function post(body, pin) {
     return new Promise(function (resolve, reject) {
       var request = new XMLHttpRequest();
@@ -485,23 +498,28 @@ function photos() {
         try {
           value = JSON.parse(request.responseText);
         } catch (_) {}
+        var detail = answer(request, value);
         if (request.status === 202) {
           if (value && typeof value.remaining === 'number')
             remaining = value.remaining;
           else remaining = Math.max(0, remaining - 1);
-          resolve('sent');
+          resolve({ result: 'sent', detail: detail });
         } else if (request.status === 409 && value && value.retry === true)
-          resolve('retry');
+          resolve({ result: 'retry', detail: detail });
         else if (request.status === 409 && value && value.errorCode)
-          resolve('limit');
-        else if (request.status === 403) reject(failure('pinError'));
+          resolve({ result: 'limit', detail: detail });
+        else if (request.status === 403) reject(failure('pinError', detail));
         else if (request.status === 400 || request.status === 413)
-          reject(failure('rejected'));
-        else reject(failure('closed'));
+          reject(failure('rejected', detail));
+        else reject(failure('closed', detail));
       };
-      request.onerror = request.ontimeout = function () {
+      request.onerror = function () {
         xhr = null;
-        reject(failure('closed'));
+        reject(failure('closed', text.network));
+      };
+      request.ontimeout = function () {
+        xhr = null;
+        reject(failure('closed', text.timeout));
       };
       request.onabort = function () {
         xhr = null;
@@ -515,8 +533,16 @@ function photos() {
       timer = setTimeout(resolve, ms);
     });
   }
-  function report(file, key) {
-    make('li', errors, null, (file.name || 'Photo') + ': ' + text[key]);
+  function report(file, key, detail) {
+    make(
+      'li',
+      errors,
+      null,
+      (file.name || 'Photo') +
+        ': ' +
+        text[key] +
+        (detail ? ' (' + detail + ')' : '')
+    );
   }
   function run() {
     if (send.disabled) return;
@@ -538,8 +564,7 @@ function photos() {
       busy = false;
       files = [];
       input.value = '';
-      var parts = [t('done', { ok: sent, n: total })];
-      if (failed) parts.push(t('failed', { n: failed }));
+      var parts = [t('tally', { ok: sent, failed: failed })];
       if (key) parts.push(text[key]);
       else if (!remaining) parts.push(text.full);
       else parts.push(t('room', { n: remaining }));
@@ -556,7 +581,8 @@ function photos() {
         tries = 0;
       status.textContent = t('sending', { i: index, n: total });
       function attempt(body) {
-        return post(body, pin).then(function (result) {
+        return post(body, pin).then(function (reply) {
+          var result = reply.result;
           if (!live()) throw failure('stopped');
           if (result === 'retry' && tries++ < 85) {
             status.textContent = t('waiting', { i: index, n: total });
@@ -566,10 +592,14 @@ function photos() {
               return attempt(body);
             });
           }
-          if (result === 'retry') throw failure('closed');
+          if (result === 'retry')
+            throw failure(
+              'closed',
+              reply.detail + ' (the TV did not read the previous photo)'
+            );
           if (result === 'limit') {
             remaining = 0;
-            throw failure('full');
+            throw failure('full', reply.detail);
           }
           sent++;
         });
@@ -600,13 +630,17 @@ function photos() {
           picture = null;
           var key = (error && error.key) || 'invalid';
           if (key === 'stopped') return;
+          var detail =
+            error &&
+            (error.key ? error.detail : error.message || String(error));
+          if (!text[key]) key = 'invalid';
+          report(file, key, detail);
           if (key === 'pinError' || key === 'closed' || key === 'full') {
             failed += queue.length - sent - failed;
             finish(key);
             return;
           }
           failed++;
-          report(file, key);
           next();
         });
     }

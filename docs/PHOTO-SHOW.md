@@ -21,7 +21,9 @@ themes/apple` and `node scripts/build-tv-theme-catalog.cjs`.
   `meta`); the personal wallpaper database is unchanged.
 - At most 50 photos (JPEG, PNG or WebP, at most 2 MiB each). A small JPEG thumbnail
   is stored with each photo so the settings list never decodes full images.
-- A warning appears from 45 photos or when the TV reports less than 50 MiB free.
+- A warning appears from 45 photos, or when the free storage the TV reports is
+  below max(10 MiB, free slots × 0.6 MiB) (e.g. under ~29 MiB with 1 photo). The
+  panel also shows the free storage the TV reports (or “unknown”) for diagnosis.
 - **Settings → Photo show**: on/off, seconds per photo (5, 8, 10, 15, 20, 30, 60),
   move up/down, delete, delete all, and **Add photos from phone**.
 
@@ -35,6 +37,14 @@ TV stores each photo, renews its 10-minute timeout after every photo, and closes
 when the list is full, after **Done**, or when settings close. Wallpaper and theme
 sessions are unchanged. The receiver code is shared, so the Root build contains
 this session kind too, without Root UI.
+
+Errors are shown exactly. On the TV, a photo that cannot be saved is reported as
+`Photo N could not be saved (code): message`; only `limit` and `storage-full` end
+the session, other errors (`invalid`, `type`, `size`, `save-failed`) skip that
+photo. Receiver start/status/read failures show the service `errorCode` and
+`errorText` (for example `receiver-busy`). The phone lists every failed photo with
+the HTTP status and server `errorCode` (e.g. `HTTP 409 photo-limit`, `HTTP 403`,
+`network error`) and ends with “X sent, Y failed”.
 
 ## Idle slideshow
 

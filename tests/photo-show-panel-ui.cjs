@@ -280,6 +280,56 @@ const active = (page) =>
         'focus survives clear'
       );
 
+      // Storage warning follows the real need: about 0.6 MiB per free slot.
+      assert.match(
+        await page.locator('#photoShowStorage').innerText(),
+        /^Free storage reported by the TV: \d+ MB$/
+      );
+      await page.evaluate(() => {
+        window.__estimate = StorageBudget.estimate;
+        window.__freeMiB = 40;
+        StorageBudget.estimate = (n) =>
+          Promise.resolve(
+            StorageBudget.budget(
+              n,
+              window.__freeMiB === null ? null : window.__freeMiB * 1048576
+            )
+          );
+      });
+      await seed(page, 1);
+      await settle(page);
+      assert(
+        await page.locator('#photoShowWarning').isHidden(),
+        '40 MiB free with 1 photo is enough'
+      );
+      assert.equal(
+        await page.locator('#photoShowStorage').innerText(),
+        'Free storage reported by the TV: 40 MB'
+      );
+      await page.evaluate(() => {
+        window.__freeMiB = 20;
+      });
+      await page.evaluate(() => PhotoShowPanel.refresh());
+      assert(await page.locator('#photoShowWarning').isVisible());
+      assert.equal(
+        await page.locator('#photoShowWarning').innerText(),
+        'Storage almost full: about 20 MB free for 49 more photos.'
+      );
+      await page.evaluate(() => {
+        window.__freeMiB = null;
+      });
+      await page.evaluate(() => PhotoShowPanel.refresh());
+      assert(await page.locator('#photoShowWarning').isHidden());
+      assert.equal(
+        await page.locator('#photoShowStorage').innerText(),
+        'Free storage reported by the TV: unknown'
+      );
+      await page.evaluate(() => {
+        StorageBudget.estimate = window.__estimate;
+        return PhotoShowStore.clear();
+      });
+      await settle(page);
+
       // Leaving the category releases every thumbnail URL.
       await seed(page, 2);
       await settle(page);

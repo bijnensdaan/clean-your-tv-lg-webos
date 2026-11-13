@@ -117,11 +117,11 @@ function readAll(r, id) {
     for (let i = 0; i < 600; i++) {
       const text = await page.locator('#status').innerText();
       progress.add(text);
-      if (/^Sent/.test(text)) break;
+      if (/\d+ sent, \d+ failed/.test(text)) break;
       await delay(50);
     }
     const summary = await page.locator('#status').innerText();
-    assert.match(summary, /Sent 3 of 4 photos\. 1 could not be sent\./);
+    assert.match(summary, /^3 sent, 1 failed\./);
     assert.match(summary, /7 more/);
     assert(
       [...progress].some((t) => /Sending 1 of 4/.test(t)),
@@ -175,13 +175,14 @@ function readAll(r, id) {
     });
     await page.locator('#send').click();
     await page.waitForFunction(
-      () => /^Sent/.test(document.querySelector('#status').textContent),
+      () =>
+        /1 sent, 0 failed/.test(document.querySelector('#status').textContent),
       null,
       { timeout: 60000 }
     );
     assert.match(
       await page.locator('#status').innerText(),
-      /Sent 1 of 1 photos\./
+      /^1 sent, 0 failed\./
     );
     for (let i = 0; i < 100 && received.length < 4; i++) await delay(50);
     assert.equal(received.length, 4);
@@ -208,8 +209,67 @@ function readAll(r, id) {
     );
     assert.match(
       await page.locator('#status').innerText(),
-      /Sent 0 of 2 photos\. 2 could not be sent\./
+      /0 sent, 2 failed\./
     );
+    assert.match(
+      await page.locator('#errors').innerText(),
+      /small\.jpg: Wrong PIN\. Check the PIN on the TV\. \(HTTP 403\)/
+    );
+    assert.equal(r.status(s.sessionId).count, 4);
+
+    // Every failed POST names the HTTP status and the server's errorCode.
+    async function batch(name) {
+      await page.locator('#pin').fill(s.pin);
+      await page.locator('#file').setInputFiles({
+        name,
+        mimeType: 'image/jpeg',
+        buffer: Buffer.from(files[2], 'base64')
+      });
+      await page.locator('#send').click();
+      await page.waitForFunction(() =>
+        /\d+ sent, \d+ failed/.test(
+          document.querySelector('#status').textContent
+        )
+      );
+      return {
+        status: await page.locator('#status').innerText(),
+        errors: await page.locator('#errors').innerText()
+      };
+    }
+    await page.route('**/v1/wallpaper', (route) =>
+      route.fulfill({
+        status: 409,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          returnValue: false,
+          errorCode: 'photo-limit',
+          errorText: 'No room left',
+          retry: false
+        })
+      })
+    );
+    let result = await batch('limit.jpg');
+    assert.match(result.status, /^0 sent, 1 failed\./);
+    assert.match(
+      result.errors,
+      /limit\.jpg: .*\(HTTP 409 photo-limit: No room left\)/
+    );
+    await page.unroute('**/v1/wallpaper');
+    await page.goto('about:blank');
+    await page.goto(origin + '/wallpaper#pin=' + s.pin);
+    await page.route('**/v1/wallpaper', (route) => route.abort('failed'));
+    result = await batch('offline.jpg');
+    assert.match(result.status, /^0 sent, 1 failed\./);
+    assert.match(result.errors, /offline\.jpg: .*\(network error\)/);
+    await page.unroute('**/v1/wallpaper');
+    await page.goto('about:blank');
+    await page.goto(origin + '/wallpaper#pin=' + s.pin);
+    await page.route('**/v1/wallpaper', (route) =>
+      route.fulfill({ status: 400, body: '' })
+    );
+    result = await batch('bad.jpg');
+    assert.match(result.errors, /bad\.jpg: Rejected by the TV \(HTTP 400\)/);
+    await page.unroute('**/v1/wallpaper');
     assert.equal(r.status(s.sessionId).count, 4);
     assert(
       !(await page.evaluate(
@@ -219,7 +279,7 @@ function readAll(r, id) {
     console.log(
       'PASS photo show phone page: multiple files, fit ≤1920×1080, ≤550 KB JPEG (' +
         sizes.join(', ') +
-        ' bytes), 409 retry, per-file errors, summary'
+        ' bytes), 409 retry, per-file HTTP/errorCode errors, sent/failed summary'
     );
   } finally {
     tv = false;

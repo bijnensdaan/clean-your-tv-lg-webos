@@ -33,7 +33,21 @@
       '{n} photos added.': '{n} foto’s toegevoegd.',
       '{n} could not be added.': '{n} konden niet worden toegevoegd.',
       'Photo receiver stopped. Try again.':
-        'Fotos ontvangen is gestopt. Probeer het opnieuw.'
+        'Fotos ontvangen is gestopt. Probeer het opnieuw.',
+      'Storage almost full: about {mb} MB free for {n} more photos.':
+        'Opslag bijna vol: ongeveer {mb} MB vrij voor nog {n} foto’s.',
+      'Free storage reported by the TV: {mb} MB':
+        'Vrije opslag volgens de tv: {mb} MB',
+      'Free storage reported by the TV: unknown':
+        'Vrije opslag volgens de tv: onbekend',
+      'Photo {n} could not be saved ({code}): {message}':
+        'Foto {n} kon niet worden opgeslagen ({code}): {message}',
+      'Photo receiver could not start ({code}): {message}':
+        'Foto’s ontvangen kon niet starten ({code}): {message}',
+      'Photo receiver stopped ({code}): {message}':
+        'Foto’s ontvangen is gestopt ({code}): {message}',
+      'The phone session expired after 10 minutes without photos.':
+        'De telefoonsessie is verlopen na 10 minuten zonder foto’s.'
     }
   };
   var panel,
@@ -41,6 +55,7 @@
     seconds,
     countText,
     warning,
+    storageText,
     status,
     empty,
     addButton,
@@ -57,6 +72,7 @@
     receiverGeneration = 0,
     received = 0,
     rejected = 0,
+    lastProblem = '',
     urls = [],
     active = false,
     current = { enabled: true, seconds: 10 },
@@ -92,6 +108,20 @@
   }
   function store() {
     return root.PhotoShowStore;
+  }
+  function megabytes(bytes) {
+    var mb = bytes / 1048576;
+    return mb >= 10 ? String(Math.floor(mb)) : String(Math.floor(mb * 10) / 10);
+  }
+  // Exact cause for diagnosis on the TV: code plus the original message.
+  function cause(error) {
+    var code =
+        (error && (error.errorCode || error.code)) ||
+        (error && error.name && error.name !== 'Error' ? error.name : 'error'),
+      message = (error && error.message) || String(error);
+    if (error && error.errorText && error.errorText !== message)
+      message = error.errorText + ' — ' + message;
+    return { code: String(code), message: message };
   }
   function fail(error) {
     if (!status) return;
@@ -229,7 +259,18 @@
     warning.textContent =
       use.count >= use.max
         ? t('Photo limit reached. Delete photos to add new ones.')
-        : t('Photo storage is almost full.');
+        : use.storageLow
+          ? t('Storage almost full: about {mb} MB free for {n} more photos.', {
+              mb: megabytes(use.freeBytes),
+              n: use.max - use.count
+            })
+          : t('Photo storage is almost full.');
+    storageText.textContent =
+      typeof use.freeBytes === 'number'
+        ? t('Free storage reported by the TV: {mb} MB', {
+            mb: megabytes(use.freeBytes)
+          })
+        : t('Free storage reported by the TV: unknown');
     empty.hidden = items.length > 0;
     empty.textContent = t(
       'No photos yet. Use “Add photos from phone” to add some.'
@@ -292,6 +333,12 @@
       if (focused) addButton.focus();
     }
     if (status && message !== undefined) status.textContent = message;
+    if (panel) labels();
+  }
+  function invalid(message) {
+    var error = Error(message);
+    error.code = 'invalid';
+    return error;
   }
   function decodePhoto(envelope) {
     var image = envelope && envelope.image;
@@ -306,9 +353,17 @@
       image.data.length !== 4 * Math.ceil(image.size / 3) ||
       /[^A-Za-z0-9+/=]/.test(image.data)
     )
-      throw Error('Invalid photo');
-    var raw = root.atob(image.data);
-    if (raw.length !== image.size) throw Error('Invalid photo');
+      throw invalid(
+        'Invalid photo envelope' +
+          (image && image.mediaType ? ' (' + image.mediaType + ')' : '')
+      );
+    var raw;
+    try {
+      raw = root.atob(image.data);
+    } catch (_) {
+      throw invalid('Photo data is not valid base64');
+    }
+    if (raw.length !== image.size) throw invalid('Photo size does not match');
     var bytes = new Uint8Array(raw.length);
     for (var i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
     if (
@@ -316,7 +371,7 @@
       root.ThemeData.hash &&
       root.ThemeData.hash(bytes) !== image.sha256
     )
-      throw Error('Invalid photo');
+      throw invalid('Photo checksum does not match');
     return {
       blob: new root.Blob([bytes], { type: image.mediaType }),
       width: image.width,
@@ -327,10 +382,13 @@
     if (receiving() || !store()) return;
     stopReceiver();
     var token = receiverGeneration,
-      signal = { cancelled: false };
+      signal = { cancelled: false },
+      started = false;
     receiverSignal = signal;
     received = rejected = 0;
+    lastProblem = '';
     addButton.disabled = true;
+    if (status) status.textContent = '';
     function live() {
       return (
         token === receiverGeneration &&
@@ -340,31 +398,64 @@
       );
     }
     function waiting() {
-      status.textContent = t('Waiting for photos… {n} received', {
-        n: received
-      });
+      status.textContent =
+        t('Waiting for photos… {n} received', { n: received }) +
+        (lastProblem ? ' ' + lastProblem : '');
+    }
+    function prefix() {
+      return received || rejected ? summary() + ' ' : '';
+    }
+    // Ends the session with the reason; the Add button is usable again.
+    function end(text) {
+      if (token !== receiverGeneration) return;
+      stopReceiver(text);
+      refresh();
     }
     function fail(error) {
-      if (!live()) return;
-      var code = error && error.code;
-      stopReceiver(
+      if (!live()) {
+        // A cancelled or replaced session never leaves the UI busy.
+        if (token === receiverGeneration && receiverSignal === signal)
+          stopReceiver();
+        return;
+      }
+      var code = error && error.code,
+        why = cause(error);
+      end(
         code === 'limit'
-          ? summary() +
-              ' ' +
-              t('Photo limit reached. Delete photos to add new ones.')
+          ? prefix() + t('Photo limit reached. Delete photos to add new ones.')
           : code === 'storage-full'
-            ? summary() + ' ' + error.message
-            : received
-              ? summary() + ' ' + t('Photo receiver stopped. Try again.')
-              : t('Photo receiver stopped. Try again.')
+            ? prefix() + lastProblem
+            : code === 'expired'
+              ? prefix() +
+                t('The phone session expired after 10 minutes without photos.')
+              : prefix() +
+                t(
+                  started
+                    ? 'Photo receiver stopped ({code}): {message}'
+                    : 'Photo receiver could not start ({code}): {message}',
+                  why
+                )
       );
-      refresh();
+    }
+    function saved(error) {
+      var why = cause(error);
+      lastProblem = t('Photo {n} could not be saved ({code}): {message}', {
+        n: received + rejected + 1,
+        code: why.code,
+        message: why.message
+      });
+      rejected++;
+      var code = error && error.code;
+      // Only a full store ends the session; other photos may still fit.
+      if (code === 'limit' || code === 'storage-full') throw error;
     }
     function poll() {
       if (!live() || !receiver) return;
       var session = receiver;
       if (Date.now() >= session.expiresAt) {
-        fail();
+        var expired = Error('Session expired');
+        expired.code = 'expired';
+        fail(expired);
         return;
       }
       root.ThemeReceiver.status(session.sessionId, signal)
@@ -374,8 +465,11 @@
             session.expiresAt = value.expiresAt;
           if (value.state !== 'received') {
             if (value.state === 'waiting' && value.remaining === 0) {
-              stopReceiver(summary());
-              refresh();
+              end(
+                summary() +
+                  ' ' +
+                  t('Photo limit reached. Delete photos to add new ones.')
+              );
               return;
             }
             receiverTimer = root.setTimeout(poll, 500);
@@ -387,23 +481,15 @@
               var photo;
               try {
                 photo = decodePhoto(envelope);
-              } catch (_) {
-                rejected++;
+              } catch (error) {
+                saved(error);
                 return;
               }
               return store()
                 .add(photo)
-                .then(
-                  function () {
-                    received++;
-                  },
-                  function (error) {
-                    var code = error && error.code;
-                    if (code === 'limit' || code === 'storage-full')
-                      throw error;
-                    rejected++;
-                  }
-                );
+                .then(function () {
+                  received++;
+                }, saved);
             })
             .then(function () {
               if (!live()) return;
@@ -414,7 +500,9 @@
         .catch(fail);
     }
     if (!root.ThemeReceiver) {
-      fail();
+      var missing = Error('ThemeReceiver is not loaded');
+      missing.code = 'missing';
+      fail(missing);
       return;
     }
     store()
@@ -422,10 +510,7 @@
       .then(function (use) {
         if (!live()) return;
         if (use.count >= use.max) {
-          stopReceiver(
-            t('Photo limit reached. Delete photos to add new ones.')
-          );
-          refresh();
+          end(t('Photo limit reached. Delete photos to add new ones.'));
           return;
         }
         return root.ThemeReceiver.start(signal, 'photos', {
@@ -435,6 +520,7 @@
             root.ThemeReceiver.stop(session.sessionId);
             return;
           }
+          started = true;
           receiver = session;
           var url = 'http://' + session.addresses[0] + ':8879/wallpaper';
           connection.hidden = false;
@@ -475,6 +561,7 @@
     warning = node('p', panel, 'photoShowWarning');
     warning.setAttribute('role', 'status');
     warning.hidden = true;
+    storageText = node('p', panel, 'photoShowStorage', 'photo-show-storage');
     status = node('p', panel, 'photoShowStatus');
     status.setAttribute('aria-live', 'polite');
     empty = node('p', panel, 'photoShowEmpty');

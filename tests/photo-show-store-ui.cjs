@@ -231,16 +231,43 @@ const helpers = () => {
     console.log('PASS 50-photo limit, nearFull and clear');
 
     const lowStorage = await page.evaluate(async () => {
-      const estimate = StorageBudget.estimate;
+      const estimate = StorageBudget.estimate,
+        blob = await new Promise((resolve) => {
+          const c = document.createElement('canvas');
+          c.width = 64;
+          c.height = 36;
+          c.getContext('2d').fillRect(0, 0, 64, 36);
+          c.toBlob(resolve, 'image/jpeg', 0.8);
+        });
+      await PhotoShowStore.add(blob);
+      const out = {};
+      async function at(mib) {
+        StorageBudget.estimate = (n) =>
+          Promise.resolve(StorageBudget.budget(n, mib * 1024 * 1024));
+        return PhotoShowStore.usage();
+      }
+      // 1 photo: 49 free slots need about 29.4 MiB.
+      out.free40 = await at(40);
+      out.free20 = await at(20);
       StorageBudget.estimate = (n) =>
-        Promise.resolve(StorageBudget.budget(n, 10 * 1024 * 1024));
-      const usage = await PhotoShowStore.usage();
+        Promise.resolve(StorageBudget.budget(n, null));
+      out.unknown = await PhotoShowStore.usage();
       StorageBudget.estimate = estimate;
+      await PhotoShowStore.clear();
       await PhotoShowStore.saveSettings({ enabled: true, seconds: 10 });
-      return usage;
+      return out;
     });
-    assert.equal(lowStorage.nearFull, true, 'nearFull under 50 MiB free');
-    console.log('PASS low free storage marks nearFull');
+    assert.equal(lowStorage.free40.count, 1);
+    assert.equal(lowStorage.free40.nearFull, false, '40 MiB free, 1 photo');
+    assert.equal(lowStorage.free40.freeBytes, 40 * 1024 * 1024);
+    assert.equal(lowStorage.free20.nearFull, true, '20 MiB free, 1 photo');
+    assert.equal(lowStorage.free20.storageLow, true);
+    assert.equal(lowStorage.free20.freeBytes, 20 * 1024 * 1024);
+    assert.equal(lowStorage.unknown.freeBytes, null);
+    assert.equal(lowStorage.unknown.nearFull, false, 'unknown free space');
+    console.log(
+      'PASS nearFull from free storage below max(10 MiB, free slots x 0.6 MiB)'
+    );
     assert.deepEqual(errors, []);
     await page.close();
   } finally {
